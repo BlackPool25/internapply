@@ -23,6 +23,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from internapply.cli.discover import discover_app
+from internapply.cli.email import email_app
 from internapply.cli.resume import resume_app
 from internapply.cli.tailor import tailor_app
 
@@ -47,6 +48,7 @@ console = Console()
 app.add_typer(resume_app, name="resume", help="Manage resume data")
 app.add_typer(discover_app, name="discover", help="Discover internship listings")
 app.add_typer(tailor_app, name="tailor", help="Tailor resume to a job description")
+app.add_typer(email_app, name="email", help="Manage Gmail sending, drafts, and approval gate")
 
 # ---------------------------------------------------------------------------
 # run  —  execute the full pipeline
