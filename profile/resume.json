@@ -3,12 +3,12 @@
   "email": "shreyasjoshi2511@gmail.com",
   "phone": "+91 7892055781",
   "location": "Bangalore, India",
-  "summary": "B.Tech AI/ML student (CGPA 9.39) and B.Sc CS student (CGPA 8.91) with hands-on project experience building LLM-powered applications, multi-agent orchestration systems, and NLP pipelines. Open-source contributor with 44 public repositories. Built production-quality systems as hobby and academic projects including Spring Boot AI platforms, blockchain credential verification, and speech-to-text tools.",
+  "summary": "B.Tech AI/ML student (CGPA 9.36) and B.Sc CS student (CGPA 8.91) with hands-on project experience building LLM-powered applications, multi-agent orchestration systems, and NLP pipelines. Open-source contributor with 44 public repositories. Built production-quality systems as hobby and academic projects including Spring Boot AI platforms, blockchain credential verification, and speech-to-text tools.",
   "education": [
     {
       "degree": "B.Tech in Artificial Intelligence and Machine Learning",
       "institution": "BMS Institute of Technology and Management",
-      "cgpa": "9.39",
+      "cgpa": "9.36",
       "expected": "May 2027"
     },
     {
@@ -23,7 +23,7 @@
     "AI/ML & LLMs": "Spring AI, LangChain, OpenAI API, Anthropic API, Groq, Gemini, Ollama, RAG, Embeddings, Prompt Engineering, Fine-tuning, HuggingFace Transformers",
     "NLP & Speech": "Whisper/Whisper.cpp, Kokoro TTS, ONNX, GoEmotions, sentence-transformers, MediaPipe, ASL Recognition",
     "Data & ML Infrastructure": "PyTorch, NumPy, Pandas, Jupyter, ChromaDB, pgvector, LightRAG, Neo4j, NetworkX",
-    "Backend & APIs": "FastAPI, Spring Boot, Express.js, REST APIs, WebSocket, GraphQL, BullMQ, JWT, Docker, Linux",
+    "Backend & APIs": "FastAPI, Spring Boot, Express.js, REST APIs, WebSocket, GraphQL, BullMQ, JWT, Docker, Linux, Git, PostgreSQL, Redis",
     "Blockchain & Web3": "Solidity, Smart Contracts, ERC-721 SBTs, Polygon, Web3Auth, IPFS, Meta-transactions",
     "Concepts": "Multi-Agent Systems, LLM Orchestration, RAG, Vector Databases, Knowledge Graphs, DSA (257 LeetCode)",
     "Backend": "Python Backend Engineering"

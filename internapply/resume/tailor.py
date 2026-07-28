@@ -460,3 +460,58 @@ def _sanitize_path_component(name: str) -> str:
 
 
 __all__ = ["ResumeTailor"]
+
+
+def tailored_resume_to_markdown(data: dict, company: str = "", job_title: str = "") -> str:
+    """Render a tailored resume dict to readable Markdown."""
+    lines = []
+    lines.append(f"# {data.get('name', 'Resume')}")
+    if company and job_title:
+        lines.append(f"*Tailored for: {job_title} @ {company}*")
+    lines.append("")
+    
+    # Summary
+    summary = data.get("summary", "")
+    if summary:
+        lines.append("## Summary")
+        lines.append(summary)
+        lines.append("")
+    
+    # Skills
+    skills = data.get("skills_reordered", [])
+    if skills:
+        lines.append("## Skills")
+        lines.append(" | ".join(skills[:12]))
+        if len(skills) > 12:
+            lines.append(f"*+{len(skills)-12} more*")
+        lines.append("")
+    
+    # Projects
+    projects = data.get("projects", [])
+    if projects:
+        lines.append("## Projects")
+        for p in projects:
+            lines.append(f"### {p.get('name', '')}")
+            tech = p.get("tech", "")
+            if tech:
+                lines.append(f"*{tech}*")
+            for bullet in p.get("bullets", p.get("description", [])):
+                lines.append(f"- {bullet}")
+            lines.append("")
+    
+    # Education
+    education = data.get("education", [])
+    if education:
+        lines.append("## Education")
+        for e in education:
+            deg = e.get("degree", e.get("degree_name", ""))
+            inst = e.get("institution", "")
+            cgpa = e.get("cgpa", e.get("gpa", ""))
+            if deg and inst:
+                lines.append(f"- {deg} — {inst}" + (f" (CGPA: {cgpa})" if cgpa else ""))
+        lines.append("")
+    
+    return "\n".join(lines)
+
+
+__all__ = ["ResumeTailor", "tailored_resume_to_markdown"]
