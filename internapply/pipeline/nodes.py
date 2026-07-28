@@ -477,12 +477,12 @@ async def filter_jobs(state: PipelineState) -> dict[str, Any]:
                     continue
                 seen_urls.add(url)
 
-                # DB dedup: skip if already in database
-                if url in existing_urls:
-                    logger.debug("Skipping {} — already in database", url)
+                # DB dedup: skip only if already APPLIED (not just discovered)
+                if url in applied_urls:
+                    logger.debug("Skipping {} — already applied", url)
                     continue
 
-                # Already-applied check
+                # Already-applied check (legacy, kept for safety)
                 if url in applied_urls:
                     logger.debug("Skipping {} — already applied", url)
                     continue

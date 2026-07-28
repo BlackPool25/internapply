@@ -17,6 +17,7 @@ from loguru import logger
 from playwright.async_api import Browser, Page
 
 from internapply.apply.browser import BrowserManager
+from internapply.config import get_config
 from internapply.database import ORMApplication, get_session
 from internapply.models import JobListing
 
