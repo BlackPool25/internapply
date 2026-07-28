@@ -73,15 +73,39 @@ class InternshalaSubmitter:
         if self._browser is not None:
             return
 
-        # Try CDP first
-        try:
-            self._browser = await self._bm.connect_cdp()
-            logger.info("Connected to existing Chrome via CDP")
-        except Exception as exc:
-            logger.warning(
-                "CDP connection failed (%s) — launching headless Chromium",
-                exc,
-            )
+        # Try CDP first: check if Chrome is already running with --remote-debugging-port
+        import socket
+
+        cdp_url = None
+        config = get_config()
+        configured_url = getattr(config, "CDP_URL", None)
+        if configured_url:
+            cdp_url = configured_url
+            logger.info("Using configured CDP URL: {}", cdp_url)
+        else:
+            # Try to find a running Chrome by probing common ports around 9222
+            for port in range(9222, 9242):
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(0.3)
+                    result = s.connect_ex(("127.0.0.1", port))
+                    s.close()
+                    if result == 0:
+                        cdp_url = f"http://127.0.0.1:{port}"
+                        logger.info("Found Chrome on port {}", port)
+                        break
+                except Exception:
+                    continue
+
+        if cdp_url:
+            try:
+                self._browser = await self._bm.connect_cdp(endpoint_url=cdp_url)
+                logger.info("Connected to existing Chrome via CDP")
+            except Exception as exc:
+                logger.warning("CDP connect failed: {} — launching headless", exc)
+                self._browser = await self._bm.launch_headless()
+        else:
+            logger.info("No existing Chrome found — launching headless Chromium")
             self._browser = await self._bm.launch_headless()
 
     async def close_session(self) -> None:

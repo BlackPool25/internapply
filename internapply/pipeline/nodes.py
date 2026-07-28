@@ -364,7 +364,6 @@ async def discover_jobs(state: PipelineState) -> dict[str, Any]:
     try:
         from internapply.config import get_config
         from internapply.discovery.internshala import InternshalaScraper
-        from internapply.discovery.naukri import NaukriScraper
 
         cfg = get_config()
         all_jobs: list[dict[str, Any]] = []
@@ -386,25 +385,6 @@ async def discover_jobs(state: PipelineState) -> dict[str, Any]:
             logger.info("Internshala returned {} jobs", len(internshala_jobs))
         except Exception as exc:
             msg = f"Internshala scrape failed: {exc}"
-            logger.error(msg)
-            return {"errors": [msg], "stage": "discover"}
-
-        # ── Naukri ─────────────────────────────────────────────────
-        try:
-            async with NaukriScraper() as scraper:
-                naukri_jobs = await scraper.search(
-                    keywords=cfg.SEARCH_KEYWORDS,
-                    locations=cfg.SEARCH_LOCATIONS,
-                )
-            for job in naukri_jobs:
-                serialized = _serialize_job(job)
-                url = serialized.get("url", "")
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
-                    all_jobs.append(serialized)
-            logger.info("Naukri returned {} jobs", len(naukri_jobs))
-        except Exception as exc:
-            msg = f"Naukri scrape failed: {exc}"
             logger.error(msg)
             return {"errors": [msg], "stage": "discover"}
 
@@ -879,12 +859,13 @@ async def generate_cover_letter(state: PipelineState) -> dict[str, Any]:
         for idx, job in enumerate(jobs):
             title = job.get("title", "?")
             company = job.get("company", "?")
-            analysis = job.get("analysis", {})
+            analysis = job.get("analysis") or {}
 
             # Build inputs for CoverLetterGen
-            required_skills = analysis.get("required_skills", [])
+            required_skills = analysis.get("required_skills", []) if analysis else []
             top_skills = required_skills[:5] if required_skills else job.get("skills", [])
-            jd_summary = analysis.get("raw_text", job.get("description", ""))[:500]
+            jd_summary = (analysis.get("raw_text") if analysis else "") or job.get("description", "")
+            jd_summary = jd_summary[:500] if jd_summary else ""
 
             logger.info("Cover letter {}/{}: {} @ {}", idx + 1, len(jobs), title, company)
 
@@ -989,7 +970,7 @@ async def prepare_email(state: PipelineState) -> dict[str, Any]:
             title = job.get("title", "?")
             company = job.get("company", "?")
             url = job.get("url", "")
-            analysis = job.get("analysis", {})
+            analysis = job.get("analysis") or {}
 
             logger.info("Email {}/{}: {} @ {}", idx + 1, len(jobs), title, company)
 
