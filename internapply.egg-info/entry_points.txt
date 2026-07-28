@@ -1,0 +1,2 @@
+[console_scripts]
+internapply = internapply.cli.main:app

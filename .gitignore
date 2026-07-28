@@ -1,0 +1,35 @@
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite3
+
+# Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+
+# OpenCode
+.omo/
+
+# Runtime data
+data/
+applications/
+
+# Tokens
+*.token
+credentials.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
