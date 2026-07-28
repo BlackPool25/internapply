@@ -181,36 +181,43 @@ class EmailFinder:
     # ── Domain extraction ─────────────────────────────────────────────
 
     @staticmethod
-    def _extract_domain(url: str, company_name: str | None) -> str:
+    _JOB_BOARD_DOMAINS = frozenset({
+        "internshala.com", "linkedin.com", "naukri.com", "indeed.com",
+        "glassdoor.com", "monster.com", "angel.co", "wellfound.com",
+        "google.com", "yahoo.com", "bing.com",
+    })
+
+    @classmethod
+    def _extract_domain(cls, url: str, company_name: str | None) -> str:
         """Extract a company domain from *url* or *company_name*.
 
         Priority:
-        1. Parse the netloc from a valid ``http``/``https`` URL.
-        2. If that fails, build a domain from *company_name* by
-           lowercasing, removing whitespace, and appending ``.com``.
+        1. Parse the netloc from the URL.  If it's a known job board
+           (internshala.com, linkedin.com, etc.), skip it and fall
+           through to the company-name guess.
+        2. Build a domain from *company_name* by lowercasing, removing
+           spaces, and appending ``.com``.
 
-        Returns the domain string (e.g. ``"acme.com"``) or an empty
-        string when neither input is usable.
+        Returns the domain string (e.g. ``"acme.com"``) or empty string.
         """
-        # -- Try the URL first --
         url = url.strip()
         if url:
             parsed = urlparse(url)
-            # urlparse may put a scheme-less input into .path instead of .netloc
             netloc = parsed.netloc or parsed.path
-            # Strip port if present
             if ":" in netloc:
                 netloc = netloc.split(":")[0]
             if netloc:
-                # Drop leading "www."
-                netloc = netloc.removeprefix("www.")
-                if "." in netloc:
-                    return netloc.lower()
+                netloc = netloc.removeprefix("www.").lower()
+                if netloc not in cls._JOB_BOARD_DOMAINS and "." in netloc:
+                    return netloc
 
-        # -- Fallback: company name → domain guess --
+        # Fallback: company name → domain guess
         if company_name:
             name = company_name.strip().lower()
-            name = name.replace(" ", "").replace("-", "")
+            name = name.replace(" ", "").replace("-", "").replace(",", "")
+            for suffix in ["privatelimited", "pvtltd", "ltd", "limited", "private"]:
+                name = name.replace(suffix, "")
+            name = name.strip()
             if not name.endswith(".com"):
                 name += ".com"
             if "." in name:
