@@ -180,7 +180,6 @@ class EmailFinder:
 
     # ── Domain extraction ─────────────────────────────────────────────
 
-    @staticmethod
     _JOB_BOARD_DOMAINS = frozenset({
         "internshala.com", "linkedin.com", "naukri.com", "indeed.com",
         "glassdoor.com", "monster.com", "angel.co", "wellfound.com",
