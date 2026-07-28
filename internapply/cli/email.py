@@ -656,3 +656,55 @@ def status() -> None:
             "[dim]Encrypted token:[/dim] [yellow]✗ Not found[/yellow]\n"
             "  Run [bold]internapply email setup[/bold] to authenticate."
         )
+
+
+@email_app.command()
+def export_token(
+    raw: bool = typer.Option(False, "--raw", help="Output raw JSON for CI setup"),
+    output: str | None = typer.Option(
+        None, "--output", "-o", help="Save to file instead of stdout",
+    ),
+) -> None:
+    """Export the Gmail OAuth token for CI/CD usage.
+
+    Run this AFTER authenticating with ``internapply email setup``.
+    The token JSON contains a refresh token that can be stored as a
+    GitHub secret (``GMAIL_TOKEN_JSON``) for headless CI environments.
+
+    Without ``--raw``, prints a masked preview.  With ``--raw``,
+    outputs the JSON for piping into a GitHub secret::
+
+        internapply email export-token --raw | pbcopy
+        # Then paste into GitHub → Settings → Secrets → GMAIL_TOKEN_JSON
+    """
+    from internapply.outreach.sender import GmailSender
+
+    sender = GmailSender()
+    token_path = sender._get_encrypted_token_path()
+
+    if not token_path.exists():
+        console.print("[red]✗[/red] No token found. Run [bold]internapply email setup[/bold] first.")
+        raise typer.Exit(1)
+
+    try:
+        encrypted = token_path.read_bytes()
+        token_data = sender._decrypt_token(encrypted)
+    except Exception as exc:
+        console.print(f"[red]✗[/red] Failed to decrypt token: {exc}")
+        raise typer.Exit(1)
+
+    if raw:
+        import json
+        output_text = json.dumps(token_data, indent=2)
+        if output:
+            Path(output).write_text(output_text, encoding="utf-8")
+            console.print(f"[green]✓[/green] Token saved to [bold]{output}[/bold]")
+        else:
+            console.print(output_text)
+    else:
+        console.print("[bold]Gmail Token — Preview[/bold]")
+        console.print(f"  Email: {token_data.get('token', '?')[:20]}...")
+        console.print(f"  Refresh token: {token_data.get('refresh_token', '?')[:20]}...")
+        console.print(f"  Scopes: {token_data.get('scopes', [])}")
+        console.print()
+        console.print("  [dim]To export for CI:[/dim] [bold]internapply email export-token --raw[/bold]")
