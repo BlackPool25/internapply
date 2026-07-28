@@ -21,7 +21,7 @@ import json
 import mimetypes
 import os
 import uuid
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
