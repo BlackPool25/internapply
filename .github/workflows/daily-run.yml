@@ -1,0 +1,33 @@
+name: Daily InternApply Run
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours (0, 6, 12, 18 UTC)
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+
+      - name: Run discovery and tailoring
+        env:
+          OPENCODE_GO_API_KEY: ${{ secrets.OPENCODE_GO_API_KEY }}
+          HUNTER_API_KEY: ${{ secrets.HUNTER_API_KEY }}
+        run: |
+          internapply discover --max-jobs 20 2>&1 | tee output.log
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: internapply-results
+          path: data/
