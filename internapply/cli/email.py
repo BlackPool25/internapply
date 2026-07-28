@@ -122,6 +122,7 @@ async def _list_pending_applications() -> list[dict[str, Any]]:
     """
     from sqlalchemy import select
 
+    from internapply.config import get_config
     from internapply.database import ORMApplication, get_session, init_db
     from internapply.models import application_to_model
 
