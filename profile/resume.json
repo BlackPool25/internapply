@@ -9,13 +9,13 @@
       "degree": "B.Tech in Artificial Intelligence and Machine Learning",
       "institution": "BMS Institute of Technology and Management",
       "cgpa": "9.36",
-      "expected": "May 2027"
+      "expected": "July 2028"
     },
     {
       "degree": "B.Sc in Computer Science",
       "institution": "BITS Pilani (Online)",
       "cgpa": "8.91",
-      "expected": "May 2027"
+      "expected": "July 2028"
     }
   ],
   "skills": {
@@ -23,7 +23,7 @@
     "AI/ML & LLMs": "Spring AI, LangChain, OpenAI API, Anthropic API, Groq, Gemini, Ollama, RAG, Embeddings, Prompt Engineering, Fine-tuning, HuggingFace Transformers",
     "NLP & Speech": "Whisper/Whisper.cpp, Kokoro TTS, ONNX, GoEmotions, sentence-transformers, MediaPipe, ASL Recognition",
     "Data & ML Infrastructure": "PyTorch, NumPy, Pandas, Jupyter, ChromaDB, pgvector, LightRAG, Neo4j, NetworkX",
-    "Backend & APIs": "FastAPI, Spring Boot, Express.js, REST APIs, WebSocket, GraphQL, BullMQ, JWT, Docker, Linux, Git, PostgreSQL, Redis",
+    "Backend & APIs": "FastAPI, Spring Boot, Express.js, REST APIs, WebSocket, GraphQL, BullMQ, JWT, Docker, Linux, Git, PostgreSQL, Redis, Kafka, Message Queues",
     "Blockchain & Web3": "Solidity, Smart Contracts, ERC-721 SBTs, Polygon, Web3Auth, IPFS, Meta-transactions",
     "Concepts": "Multi-Agent Systems, LLM Orchestration, RAG, Vector Databases, Knowledge Graphs, DSA (257 LeetCode)",
     "Backend": "Python Backend Engineering"
@@ -109,28 +109,48 @@
         "Built Linux-native voice typing application with OpenAI Whisper for offline speech recognition and global hotkey support working across all applications",
         "Implemented GPU acceleration supporting both NVIDIA (CUDA) and AMD (ROCm) with automatic device detection and local AI assistant via Ollama for privacy-first voice commands"
       ]
+    },
+    {
+      "name": "DSA-Visualizer",
+      "url": "https://github.com/BlackPool25/DSA-Visualizer",
+      "tech": "TypeScript, React, GDB, libclang AST, Docker",
+      "description": [
+        "Built GDB-powered C++ algorithm execution tracer with real-time visualization of data structures and memory state",
+        "Implemented Docker sandbox for safe code execution, supporting multi-step debugging with breakpoints and variable inspection",
+        "Designed interactive UI for step-through algorithm visualization, enabling students to understand complex DSA concepts visually"
+      ]
+    },
+    {
+      "name": "packt",
+      "url": "https://github.com/BlackPool25/packt",
+      "tech": "Python",
+      "description": [
+        "Contributed to open-source AI/ML library for model packaging and deployment"
+      ]
+    },
+    {
+      "name": "Percepta",
+      "url": "https://github.com/BlackPool25/Percepta",
+      "tech": "Python, PyTorch, NumPy",
+      "description": [
+        "Built continual learning system inspired by Complementary Learning Systems theory with hippocampal memory consolidation",
+        "Implemented dual-speed learning architecture with fast (hippocampus) and slow (neocortex) pathways achieving 73.6% ACC on Split-MNIST",
+        "Designed promotion gates and EWC-based retention mechanisms for 3.87× improvement over naive fine-tuning"
+      ]
     }
   ],
   "additional": [
     {
       "label": "Open Source Contributor",
-      "value": "Odysseus — contributed to an open-source project built with modern web technologies"
+      "value": "Contributed to link-society/flowg (AI workflow engine), opentofu (infrastructure-as-code tool), milvus-io/milvus-proto (vector database protocol), zalando/skipper (HTTP router), and openchoreo/sample-workloads — across Go, TypeScript, and Python codebases"
     },
     {
       "label": "Open Source Portfolio",
-      "value": "44 public repositories covering AI/ML, LLM orchestration, NLP, blockchain, accessibility tools, and developer utilities"
-    },
-    {
-      "label": "Hackathons",
-      "value": "Built AI detection tools and civic tech solutions in 24-hour hackathons"
+      "value": "30 public repositories on GitHub covering AI/ML, LLM orchestration, NLP, blockchain, accessibility tools, and developer utilities"
     },
     {
       "label": "DSA & Problem Solving",
       "value": "257 LeetCode problems solved (BlackPool25) — 132 Easy / 118 Medium / 7 Hard | 80.06% acceptance rate | Beats 93.73% in runtime"
-    },
-    {
-      "label": "GitHub Activity",
-      "value": "30 public repositories across languages including JavaScript, TypeScript, Java, Python, Go. Top repos: OmniLearn (npm package), Percepta (continual learning), AgentDock (multi-agent framework). Recent activity: active contributions to open-source projects including pymilvus, packt, and odysseus."
     },
     {
       "label": "Hackathon Winner",
