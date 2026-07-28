@@ -1038,6 +1038,39 @@ async def prepare_email(state: PipelineState) -> dict[str, Any]:
                 except OSError as exc:
                     logger.warning("Could not save email draft: {}", exc)
 
+                # Save to DB for email send command to find
+                if job.get("email_contacts"):
+                    try:
+                        from internapply.database import ORMApplication, get_session
+                        from sqlalchemy import select
+                        async with get_session() as session:
+                            result = await session.execute(
+                                select(ORMApplication).where(ORMApplication.job_id == job.get("id"))
+                            )
+                            app = result.scalar_one_or_none()
+                            if app is None:
+                                from internapply.database import ORMJobListing
+                                from sqlalchemy import select as sel2
+                                j_result = await session.execute(
+                                    sel2(ORMJobListing).where(ORMJobListing.url == job.get("url", ""))
+                                )
+                                job_row = j_result.scalar_one_or_none()
+                                if job_row:
+                                    app = ORMApplication(
+                                        job_id=job_row.id,
+                                        status="email_drafted",
+                                        email_contacts_json=json.dumps(job["email_contacts"]),
+                                        email_draft_path=str(draft_path),
+                                    )
+                                    session.add(app)
+                            else:
+                                app.email_contacts_json = json.dumps(job["email_contacts"])
+                                app.email_draft_path = str(draft_path)
+                                app.status = "email_drafted"
+                            await session.commit()
+                    except Exception as db_exc:
+                        logger.debug("Could not save email state to DB: {}", db_exc)
+
                 logger.info(
                     "Email draft for '{}' @ {} — humanisation score {}/100",
                     title,
