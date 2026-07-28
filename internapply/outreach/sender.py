@@ -20,6 +20,7 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import uuid
 from datetime import UTC, date, datetime
 from email.mime.application import MIMEApplication
@@ -172,6 +173,11 @@ class GmailSender:
                 current_count + 1,
                 _MAX_SENDS_PER_DAY,
             )
+
+        # ── Clean up body: strip Subject line, fix line breaks ────────────
+        body = re.sub(r"^Subject:.*?\n", "", body, flags=re.MULTILINE).strip()
+        # Ensure proper line breaks between paragraphs
+        body = re.sub(r"\n{3,}", "\n\n", body)
 
         # ── Build RFC 2822 message with optional attachment ────────────────
         if attachment_path:

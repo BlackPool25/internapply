@@ -262,7 +262,10 @@ def _build_draft_prompt(
         f"IMPORTANT: Do NOT fabricate years of experience, job titles, or "
         f"professional roles. Frame everything as student project experience.\n\n"
         f"Tone: professional, confident, concise — like a peer, not a "
-        f"subordinate. Plain text format, no placeholders, under 120 words.\n\n"
+        f"subordinate. Use proper line breaks between paragraphs. "
+        f"Under 120 words.\n\n"
+        f"CRITICAL: Do NOT start with 'Subject:' — that is set separately. "
+        f"Write ONLY the email body, no subject line, no signature dashes.\n\n"
         f"NO clichés: 'I am writing to apply', 'I am excited about', "
         f"'proven track record', 'team player', 'keen interest'."
     )
