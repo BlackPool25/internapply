@@ -116,7 +116,7 @@ class LLMClient:
         self,
         messages: list[dict],
         model: str | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
         temperature: float = 0.3,
         response_format: dict | None = None,
     ) -> str:
@@ -283,7 +283,7 @@ class LLMClient:
         try:
             _ = self.complete(
                 messages=[{"role": "user", "content": "Return OK"}],
-                max_tokens=16,
+                max_tokens=512,
                 temperature=0,
             )
             logger.info("LLM connection validated — API key is active")
@@ -306,7 +306,7 @@ class LLMClient:
         self,
         messages: list[dict],
         model: str | None = None,
-        max_tokens: int = 4096,
+        max_tokens: int = 16384,
         temperature: float = 0.3,
         response_format: dict | None = None,
     ) -> str:

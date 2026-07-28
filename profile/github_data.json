@@ -1,0 +1,104 @@
+{
+  "public_repos": 30,
+  "top_languages": [
+    [
+      "JavaScript",
+      3
+    ],
+    [
+      "TypeScript",
+      3
+    ],
+    [
+      "Java",
+      3
+    ],
+    [
+      "Python",
+      2
+    ],
+    [
+      "Go",
+      2
+    ],
+    [
+      "Rust",
+      1
+    ],
+    [
+      "Dart",
+      1
+    ]
+  ],
+  "recent_repos": [
+    {
+      "name": "OmniLearn",
+      "description": "AI-powered adaptive learning workflows for OpenCode — personalized roadmaps, hands-on assignments, progress tracking. npm: omnilearn-workflow",
+      "url": "https://github.com/BlackPool25/OmniLearn",
+      "stars": 0,
+      "language": "JavaScript"
+    },
+    {
+      "name": "pymilvus",
+      "description": "Python SDK for Milvus Vector Database",
+      "url": "https://github.com/BlackPool25/pymilvus",
+      "stars": 0,
+      "language": null
+    },
+    {
+      "name": "packt",
+      "description": "Content-defined chunking with exact dedup — FastCDC, BLAKE3, zstd, streaming pipeline",
+      "url": "https://github.com/BlackPool25/packt",
+      "stars": 1,
+      "language": "Rust"
+    },
+    {
+      "name": "odysseus",
+      "description": "Self-hosted AI workspace. ",
+      "url": "https://github.com/BlackPool25/odysseus",
+      "stars": 0,
+      "language": "JavaScript"
+    },
+    {
+      "name": "WhisperLayer",
+      "description": "Linux-native offline speech-to-text voice typing — GPU-accelerated with Whisper, global hotkeys, and local AI assistant",
+      "url": "https://github.com/BlackPool25/WhisperLayer",
+      "stars": 2,
+      "language": "Python"
+    },
+    {
+      "name": "MudraTalk",
+      "description": "Real-time speech-to-ASL 3D avatar accessibility tool — Whisper.cpp + Gemma 3 LLM + CCD inverse kinematics",
+      "url": "https://github.com/BlackPool25/MudraTalk",
+      "stars": 0,
+      "language": "JavaScript"
+    }
+  ],
+  "recent_activity": [
+    {
+      "type": "IssueCommentEvent",
+      "repo": "milvus-io/milvus",
+      "created_at": "2026-07-28T15:34:57Z"
+    },
+    {
+      "type": "IssueCommentEvent",
+      "repo": "milvus-io/milvus",
+      "created_at": "2026-07-28T11:07:07Z"
+    },
+    {
+      "type": "IssueCommentEvent",
+      "repo": "milvus-io/pymilvus",
+      "created_at": "2026-07-28T11:04:36Z"
+    },
+    {
+      "type": "PushEvent",
+      "repo": "BlackPool25/milvus",
+      "created_at": "2026-07-28T10:59:43Z"
+    },
+    {
+      "type": "PushEvent",
+      "repo": "BlackPool25/milvus",
+      "created_at": "2026-07-28T10:51:06Z"
+    }
+  ]
+}

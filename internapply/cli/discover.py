@@ -7,6 +7,7 @@ prints a summary table.  Results can be saved to the database.
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 import typer
@@ -146,7 +147,7 @@ async def _run_discovery(
                         stipend_min=job.get("stipend_min"),
                         stipend_max=job.get("stipend_max"),
                         stipend_raw=job.get("stipend_raw"),
-                        skills_json=str(job.get("skills", [])),
+                        skills_json=json.dumps(job.get("skills", [])),
                         description=job.get("description"),
                         source=job.get("source", ""),
                         url=job.get("url", ""),

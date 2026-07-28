@@ -248,15 +248,17 @@ def _build_draft_prompt(
     prompt = (
         f"Write a professional cold email (80-120 words) to the hiring manager "
         f"at {company} for the {title} role. "
-        f"Your name is {name}, a computer science student (B.Tech AI/ML, B.Sc CS). "
+        f"Your name is {name}, a computer science student (B.Tech AI/ML, B.Sc CS) "
+        f"with academic and hobby projects — NOT professional work experience. "
         f"Background: {summary}. "
         f"Relevant skills: {skills_str}.\n\n"
         f"The email should:\n"
-        f"1) Reference something specific about the company or job description "
-        f"to show research\n"
-        f"2) State you've applied and why you're a strong fit (1-2 specific "
-        f"achievements)\n"
+        f"1) Reference something specific about the company or job description\n"
+        f"2) State you've applied and why you're a strong fit (mention 1-2 "
+        f"relevant projects from your portfolio)\n"
         f"3) Ask for a 15-minute conversation\n\n"
+        f"IMPORTANT: Do NOT fabricate years of experience, job titles, or "
+        f"professional roles. Frame everything as student project experience.\n\n"
         f"Tone: professional, confident, concise — like a peer, not a "
         f"subordinate. Plain text format, no placeholders, under 120 words.\n\n"
         f"NO clichés: 'I am writing to apply', 'I am excited about', "
@@ -403,7 +405,7 @@ class CoverLetterGen:
             letter = await self._llm.async_complete(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
-                max_tokens=512,
+                max_tokens=8192,
             )
 
             # Pass 2: Humanisation pipeline

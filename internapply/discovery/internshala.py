@@ -278,83 +278,80 @@ async def _fetch_page(client: httpx.AsyncClient, url: str) -> str | None:
 def _extract_card_data(card: Tag) -> dict[str, Any] | None:
     """Extract job fields from a single Internshala listing ``<div>``.
 
+    Uses text-based parsing (split on delimiters) to handle frequent
+    Internshala HTML structure changes without per-selector maintenance.
+
     Returns a dict with keys ``title``, ``company``, ``location``,
     ``stipend_raw``, ``skills``, ``url`` or ``None`` if the card does not
     contain a recognisable job title.
     """
-    # ── Title (essential) ──────────────────────────────────────────
-    title: str | None = None
+    # Get all text parts as a flat list
+    text = card.get_text("\n", strip=True)
+    parts = [p.strip() for p in text.split("\n") if p.strip()]
 
-    # Try: <h4 class="heading_4_*"><a>...</a></h4>
-    h4 = card.find("h4", class_=re.compile(r"heading_4"))
-    if h4 and h4.a:
-        title = h4.a.get_text(strip=True)
-    if not title:
-        h4 = card.find("h4")
-        if h4 and h4.a:
-            title = h4.a.get_text(strip=True)
-    if not title:
-        a_tag = card.find("a", class_=re.compile(r"(internship|job)_title", re.IGNORECASE))
-        if a_tag:
-            title = a_tag.get_text(strip=True)
-    if not title:
-        a_tag = card.find("a", href=re.compile(r"^/(internship|job)/"))
-        if a_tag:
-            title = a_tag.get_text(strip=True)
-    if not title:
-        return None  # Title is mandatory
+    if not parts:
+        return None
 
-    # ── URL (essential) ────────────────────────────────────────────
+    # ── URL (essential — find first internship/job link) ─────────────
     url: str | None = None
     for link in card.find_all("a", href=True):
-        href: str = link["href"]  # type: ignore[assignment]
+        href: str = link["href"]
         if href.startswith(("/internship/", "/job/")):
             url = urljoin(BASE_URL, href)
             break
     if not url:
-        return None  # URL is mandatory
+        return None
 
-    # ── Company ────────────────────────────────────────────────────
+    # ── Title (essential — first part or first <a> text) ────────────
+    title = parts[0]
+    if not title or len(title) < 3:
+        a_tag = card.find("a", href=re.compile(r"^/(internship|job)/"))
+        if a_tag:
+            title = a_tag.get_text(strip=True)
+    if not title or len(title) < 3:
+        return None
+
+    # ── Company (first non-excluded part after title) ───────────────
+    excluded = {"actively hiring", "work from home", "hybrid", "part-time",
+                "full-time", "internship", "job"}
     company = ""
-    h4_company = card.find("h4", class_=re.compile(r"heading_6"))
-    if h4_company:
-        company = h4_company.get_text(strip=True)
-    if not company:
-        company_div = card.find("div", class_=re.compile(r"(company|organization)", re.IGNORECASE))
-        if company_div:
-            company = company_div.get_text(strip=True)
-    if not company:
-        # Fallback: second h4 in the card
-        h4s = card.find_all("h4")
-        if len(h4s) > 1:
-            company = h4s[1].get_text(strip=True)
+    for p in parts[1:4]:
+        if not p:
+            continue
+        p_lower = p.lower().strip()
+        if len(p_lower) > 2 and p_lower not in excluded and "₹" not in p and "/month" not in p and "months" not in p:
+            company = p
+            break
 
-    # ── Location ───────────────────────────────────────────────────
+    # ── Location ────────────────────────────────────────────────────
     location = ""
-    loc_link = card.find("a", class_=re.compile(r"location", re.IGNORECASE))
-    if loc_link:
-        location = loc_link.get_text(strip=True)
+    for a_tag in card.find_all("a", href=""):
+        loc = a_tag.get_text(strip=True)
+        if loc and len(loc) > 2:
+            location = loc
+            break
     if not location:
-        loc_div = card.find("div", class_=re.compile(r"location", re.IGNORECASE))
-        if loc_div:
-            location = loc_div.get_text(strip=True)
+        for p in parts:
+            pl = p.lower()
+            if any(c in pl for c in ["remote", "bangalore", "mumbai", "delhi", "hyderabad",
+                                      "pune", "chennai", "kolkata", "work from home",
+                                      "gurgaon", "noida", "ahmedabad"]):
+                location = p
+                break
 
     # ── Stipend ────────────────────────────────────────────────────
-    stipend_raw: str | None = None
-    stipend_el = card.find(class_=re.compile(r"stipend", re.IGNORECASE))
-    if stipend_el:
-        stipend_raw = stipend_el.get_text(strip=True)
+    stipend_raw = ""
+    for p in parts:
+        if "₹" in p:
+            stipend_raw = p
+            break
 
     # ── Skills ─────────────────────────────────────────────────────
     skills: list[str] = []
     skill_container = card.find("div", class_=re.compile(r"(skill|tag)", re.IGNORECASE))
     if skill_container:
-        text = skill_container.get_text(strip=True)
-        skills = [s.strip() for s in text.split(",") if s.strip()]
-    if not skills:
-        skill_spans = card.find_all("span", class_=re.compile(r"(skill|tag)", re.IGNORECASE))
-        if skill_spans:
-            skills = [s.get_text(strip=True) for s in skill_spans if s.get_text(strip=True)]
+        skills_text = skill_container.get_text(strip=True)
+        skills = [s.strip() for s in skills_text.split(",") if s.strip()]
 
     return {
         "title": title,
