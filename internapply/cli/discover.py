@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from datetime import date
 from typing import Any
 
 import typer
@@ -131,31 +132,18 @@ async def _run_discovery(
         filtered = filtered[:max_jobs]
         console.print(f"  Limited to first [bold]{max_jobs}[/bold] jobs")
 
-    # ── Save to database ───────────────────────────────────────────
+    # ── Save to database (upsert with dedup) ──────────────────────
     if save and not dry_run:
         try:
-            from internapply.database import ORMJobListing, get_session, init_db
+            from internapply.database import get_session, init_db, upsert_job_listing
+            from internapply.pipeline.nodes import _parse_relative_date
 
             await init_db(config_dict.get("DATABASE_PATH"))
             saved_count = 0
             async with get_session() as session:
                 for job in filtered:
-                    listing = ORMJobListing(
-                        title=job.get("title", ""),
-                        company=job.get("company", ""),
-                        location=job.get("location"),
-                        stipend_min=job.get("stipend_min"),
-                        stipend_max=job.get("stipend_max"),
-                        stipend_raw=job.get("stipend_raw"),
-                        skills_json=json.dumps(job.get("skills", [])),
-                        description=job.get("description"),
-                        source=job.get("source", ""),
-                        url=job.get("url", ""),
-                        posted_at=job.get("posted_at"),
-                        is_paid=job.get("is_paid", False),
-                        is_remote=job.get("is_remote", False),
-                    )
-                    session.add(listing)
+                    posted_at_date = _parse_relative_date(job.get("posted_at"))
+                    await upsert_job_listing(session, job, posted_at_date_value=posted_at_date)
                     saved_count += 1
             console.print(
                 f"  [green]Saved {saved_count} listing(s) to database[/green]"

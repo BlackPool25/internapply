@@ -361,12 +361,23 @@ class GmailSender:
         if self._service is not None:
             return self._service
 
-        token_data = self._load_token()
-        if token_data is None:
-            logger.error(
-                "No saved token found — run ``authenticate()`` first",
-            )
-            return None
+        # Check for CI env var first (bypasses encrypted file for CI/CD)
+        token_json = os.getenv("GMAIL_TOKEN_JSON")
+        if token_json:
+            try:
+                token_data = json.loads(token_json)
+            except json.JSONDecodeError:
+                logger.error("GMAIL_TOKEN_JSON is not valid JSON")
+                return None
+        else:
+            # Local path: load from encrypted file
+            token_data = self._load_token()
+            if token_data is None:
+                logger.error(
+                    "No saved token found — run ``authenticate()`` first "
+                    "or set GMAIL_TOKEN_JSON",
+                )
+                return None
 
         try:
             creds = Credentials(

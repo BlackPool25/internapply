@@ -4,16 +4,18 @@ Uses SQLAlchemy 2.0 async with aiosqlite. Migration system uses a schema_version
 table to track applied versions — migrations are Python functions run sequentially.
 """
 
+import json
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from loguru import logger
 from sqlalchemy import (
     Boolean,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -24,6 +26,7 @@ from sqlalchemy import (
     func,
     insert as sa_insert,
     select,
+    text,
 )
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -85,6 +88,7 @@ class ORMJobListing(Base):
     source: Mapped[str]
     url: Mapped[str]
     posted_at: Mapped[str | None] = mapped_column(nullable=True)
+    posted_at_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_paid: Mapped[bool] = mapped_column(Boolean, default=False)
     is_remote: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
@@ -156,8 +160,37 @@ async def _migrate_v1() -> None:
     logger.info("Migration V1 complete — tables: job_listings, applications, resumes, email_lookups")
 
 
+async def _migrate_v2() -> None:
+    """V2: Add posted_at_date DATE column to job_listings (idempotent).
+
+    Checks for column existence via ``PRAGMA table_info`` before running
+    the ``ALTER TABLE`` so the migration is safe even when the ORM model
+    already includes the column (V1's ``create_all`` may have created it).
+    """
+    async with _engine.begin() as conn:
+        exists = await conn.run_sync(
+            _migrate_v2_column_exists
+        )
+        if not exists:
+            await conn.run_sync(
+                lambda sync_conn: sync_conn.execute(
+                    text("ALTER TABLE job_listings ADD COLUMN posted_at_date DATE")
+                )
+            )
+    logger.info("Migration V2 complete — added posted_at_date column to job_listings")
+
+
+def _migrate_v2_column_exists(sync_conn: Any) -> bool:
+    """Return ``True`` if ``posted_at_date`` already exists in ``job_listings``."""
+    rows = sync_conn.execute(
+        text("PRAGMA table_info(job_listings)")
+    ).fetchall()
+    return any(row[1] == "posted_at_date" for row in rows)
+
+
 MIGRATIONS: list[tuple[int, str, Any]] = [
     (1, "Create initial tables (job_listings, applications, resumes, email_lookups)", _migrate_v1),
+    (2, "Add posted_at_date column to job_listings", _migrate_v2),
 ]
 
 
@@ -287,3 +320,108 @@ async def get_schema_version() -> int:
             return result.scalar() or 0
     except Exception:
         return 0
+
+
+# ---------------------------------------------------------------------------
+# DB helpers — queries & upserts
+# ---------------------------------------------------------------------------
+
+
+async def get_job_by_url(session: AsyncSession, url: str) -> ORMJobListing | None:
+    """Return the job listing with the given URL, or ``None``.
+
+    Args:
+        session: An active async database session.
+        url: The job listing URL to look up.
+
+    Returns:
+        The matching :class:`ORMJobListing` row, or ``None``.
+    """
+    result = await session.execute(
+        select(ORMJobListing).where(ORMJobListing.url == url)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_job_applied_urls(
+    session: AsyncSession,
+    statuses: list[str] | None = None,
+) -> set[str]:
+    """Return the set of job URLs that already have applications.
+
+    Args:
+        session: An active async database session.
+        statuses: Application statuses to consider.  Defaults to
+            ``["discovered", "applied", "submitted"]``.
+
+    Returns:
+        A set of job listing URLs (strings).
+    """
+    if statuses is None:
+        statuses = ["discovered", "applied", "submitted"]
+
+    result = await session.execute(
+        select(ORMJobListing.url)
+        .join(ORMApplication, ORMApplication.job_id == ORMJobListing.id)
+        .where(ORMApplication.status.in_(statuses))
+    )
+    return {row[0] for row in result.fetchall() if row[0]}
+
+
+async def upsert_job_listing(
+    session: AsyncSession,
+    job: dict[str, Any],
+    posted_at_date_value: date | None = None,
+) -> ORMJobListing:
+    """Insert or update a job listing keyed on URL uniqueness.
+
+    If a row with the same ``url`` already exists its fields are updated
+    in-place; otherwise a new row is inserted.
+
+    Args:
+        session: An active async database session.
+        job: A dict of job fields (must include ``url``).
+        posted_at_date_value: Parsed posting date, or ``None``.
+
+    Returns:
+        The created or updated :class:`ORMJobListing` instance.
+    """
+    existing = await get_job_by_url(session, job.get("url", ""))
+    if existing is not None:
+        existing.title = job.get("title", existing.title)
+        existing.company = job.get("company", existing.company)
+        existing.location = job.get("location")
+        existing.stipend_min = job.get("stipend_min")
+        existing.stipend_max = job.get("stipend_max")
+        existing.stipend_raw = job.get("stipend_raw")
+        existing.skills_json = json.dumps(job.get("skills", []))
+        existing.analysis_json = (
+            json.dumps(job["analysis"]) if job.get("analysis") else existing.analysis_json
+        )
+        existing.description = job.get("description")
+        existing.source = job.get("source", existing.source)
+        existing.posted_at = job.get("posted_at")
+        existing.posted_at_date = posted_at_date_value
+        existing.is_paid = job.get("is_paid", False)
+        existing.is_remote = job.get("is_remote", False)
+        return existing
+
+    listing = ORMJobListing(
+        title=job.get("title", ""),
+        company=job.get("company", ""),
+        location=job.get("location"),
+        stipend_min=job.get("stipend_min"),
+        stipend_max=job.get("stipend_max"),
+        stipend_raw=job.get("stipend_raw"),
+        skills_json=json.dumps(job.get("skills", [])),
+        analysis_json=json.dumps(job["analysis"]) if job.get("analysis") else None,
+        description=job.get("description"),
+        source=job.get("source", ""),
+        url=job.get("url", ""),
+        posted_at=job.get("posted_at"),
+        posted_at_date=posted_at_date_value,
+        is_paid=job.get("is_paid", False),
+        is_remote=job.get("is_remote", False),
+    )
+    session.add(listing)
+    return listing

@@ -16,7 +16,9 @@ import asyncio
 import copy
 import json
 import random
+import re
 import time
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -261,6 +263,69 @@ def _serialize_job(job: Any) -> dict[str, Any]:
     return dict(job)
 
 
+def _parse_relative_date(value: str | None) -> date | None:
+    """Parse a human-readable posting-date string to a :class:`datetime.date`.
+
+    Handles the following formats:
+
+    * ``"Few hours ago"``, ``"Just now"``, ``"Today"``, ``"Actively hiring"``
+      → today's date.
+    * ``"Yesterday"`` → yesterday.
+    * ``"N days ago"`` → N days ago.
+    * ``"N weeks ago"`` → N × 7 days ago.
+    * ``"N months ago"`` → N × 30 days ago.
+    * Any unparseable value → today (conservative fallback).
+    * ``None`` / empty → ``None``.
+    """
+    if not value:
+        return None
+
+    today_d = date.today()
+    lower = value.strip().lower()
+
+    # Immediate / today
+    if lower in ("few hours ago", "just now", "today", "actively hiring"):
+        return today_d
+
+    # Yesterday
+    if lower == "yesterday":
+        return today_d - timedelta(days=1)
+
+    # N days ago
+    m = re.search(r"(\d+)\s+days?\s+ago", lower)
+    if m:
+        return today_d - timedelta(days=int(m.group(1)))
+
+    # N weeks ago
+    m = re.search(r"(\d+)\s+weeks?\s+ago", lower)
+    if m:
+        return today_d - timedelta(weeks=int(m.group(1)))
+
+    # N months ago
+    m = re.search(r"(\d+)\s+months?\s+ago", lower)
+    if m:
+        return today_d - timedelta(days=int(m.group(1)) * 30)
+
+    # Unparseable → today (conservative)
+    return today_d
+
+
+def _recency_sort_key(job: dict[str, Any]) -> date:
+    """Return a sort key for newest-first ordering by ``posted_at_date``.
+
+    If the job dict already has a ``posted_at_date`` key (a ``date`` object)
+    that is used directly.  Otherwise the raw ``posted_at`` string is parsed
+    via :func:`_parse_relative_date`.  Jobs with no date at all sort to
+    today (most recent / default).
+    """
+    d = job.get("posted_at_date")
+    if d is None:
+        posted_at = job.get("posted_at")
+        if posted_at:
+            d = _parse_relative_date(posted_at)
+    return d or date.today()
+
+
 def _app_dir(company: str, title: str) -> Path:
     """Return the applications sub-directory for a given company + title."""
     from internapply.resume.tailor import _sanitize_path_component
@@ -363,13 +428,16 @@ async def discover_jobs(state: PipelineState) -> dict[str, Any]:
 
 
 async def filter_jobs(state: PipelineState) -> dict[str, Any]:
-    """Apply post-filters and deduplicate by URL.
+    """Apply post-filters, deduplicate, and sort by recency.
 
     Filters applied:
     * Exclude unpaid jobs (``is_paid == False``).
     * Exclude jobs below ``MIN_STIPEND_INR``.
     * Deduplicate by URL (keeps first occurrence).
     * Optionally location filter (case-insensitive substring).
+    * Skip jobs whose URL already exists in the database.
+    * Skip jobs whose URL already has an application.
+    * Sort remaining jobs by posting recency (newest first).
     """
     _log_stage(state, "filter")
     start = time.monotonic()
@@ -397,16 +465,47 @@ async def filter_jobs(state: PipelineState) -> dict[str, Any]:
         min_stipend = cfg.get("MIN_STIPEND_INR", 5000)
         target_locations = [loc.lower() for loc in cfg.get("SEARCH_LOCATIONS", [])]
 
+        # ── Load DB state for dedup & already-applied check ──────────
+        existing_urls: set[str] = set()
+        applied_urls: set[str] = set()
+        try:
+            from internapply.database import (
+                ORMJobListing,
+                get_job_applied_urls,
+                get_session,
+                init_db,
+            )
+            from sqlalchemy import select
+
+            db_path = cfg.get("DATABASE_PATH")
+            await init_db(db_path)
+            async with get_session() as session:
+                result = await session.execute(select(ORMJobListing.url))
+                existing_urls = {row[0] for row in result.fetchall() if row[0]}
+                applied_urls = await get_job_applied_urls(session)
+        except Exception as exc:
+            logger.warning("Could not load DB state for dedup: {}", exc)
+
         seen_urls: set[str] = set()
         filtered: list[dict[str, Any]] = []
 
         for job in raw_jobs:
-            # Dedup by URL
+            # In-memory dedup by URL
             url = job.get("url", "")
             if url:
                 if url in seen_urls:
                     continue
                 seen_urls.add(url)
+
+                # DB dedup: skip if already in database
+                if url in existing_urls:
+                    logger.debug("Skipping {} — already in database", url)
+                    continue
+
+                # Already-applied check
+                if url in applied_urls:
+                    logger.debug("Skipping {} — already applied", url)
+                    continue
 
             # Paid check
             if not job.get("is_paid", False):
@@ -426,7 +525,14 @@ async def filter_jobs(state: PipelineState) -> dict[str, Any]:
                 ):
                     continue
 
+            # Parse relative date for recency sorting
+            if "posted_at_date" not in job or job["posted_at_date"] is None:
+                job["posted_at_date"] = _parse_relative_date(job.get("posted_at"))
+
             filtered.append(job)
+
+        # Sort by recency (newest first)
+        filtered.sort(key=_recency_sort_key, reverse=True)
 
         logger.info(
             "Filtered: {} → {} jobs ({} removed)",

@@ -8,6 +8,7 @@ listing pages are server-rendered HTML.
 from __future__ import annotations
 
 import asyncio
+import json
 import random
 import re
 from typing import Any, Self
@@ -311,42 +312,71 @@ def _extract_card_data(card: Tag) -> dict[str, Any] | None:
     if not title or len(title) < 3:
         return None
 
-    # ── Company (first non-excluded part after title) ───────────────
-    excluded = {"actively hiring", "work from home", "hybrid", "part-time",
-                "full-time", "internship", "job"}
+    # ── Company (first non-excluded part after title, scan all parts) ─
+    company_excluded = {
+        "actively hiring", "work from home", "hybrid", "part-time",
+        "full-time", "internship", "job", "intern", "start date",
+        "duration", "skills", "about", "requirements", "perks",
+        "stipend", "locations", "remote", "apply by",
+    }
     company = ""
-    for p in parts[1:4]:
+    for p in parts[1:]:
         if not p:
             continue
         p_lower = p.lower().strip()
-        if len(p_lower) > 2 and p_lower not in excluded and "₹" not in p and "/month" not in p and "months" not in p:
+        if (
+            len(p_lower) > 2
+            and p_lower not in company_excluded
+            and "₹" not in p
+            and "/month" not in p
+            and "months" not in p
+            and not any(c in p_lower for c in ["day", "week", "hour"])
+            and not re.match(r"^\d", p)
+        ):
             company = p
             break
 
-    # ── Location ────────────────────────────────────────────────────
+    # ── Location (text-based scanning — primary) ──────────────────
     location = ""
-    for a_tag in card.find_all("a", href=""):
-        loc = a_tag.get_text(strip=True)
-        if loc and len(loc) > 2:
-            location = loc
+    location_tokens = [
+        "remote", "bangalore", "bengaluru", "mumbai", "delhi", "hyderabad",
+        "pune", "chennai", "kolkata", "work from home", "work-from-home",
+        "gurgaon", "gurugram", "noida", "ahmedabad", "india",
+    ]
+    for p in parts:
+        pl = p.lower()
+        if any(c in pl for c in location_tokens):
+            location = p
             break
-    if not location:
-        for p in parts:
-            pl = p.lower()
-            if any(c in pl for c in ["remote", "bangalore", "mumbai", "delhi", "hyderabad",
-                                      "pune", "chennai", "kolkata", "work from home",
-                                      "gurgaon", "noida", "ahmedabad"]):
-                location = p
-                break
 
-    # ── Stipend ────────────────────────────────────────────────────
+    # ── Stipend ──────────────────────────────────────────────────
+    _STIPEND_EXTRACT_RE = re.compile(
+        r"(?:₹|Rs\.?\s*|INR\s*)\s*([\d,]+(?:\s*[-–]\s*[\d,]+)?)",
+        re.IGNORECASE,
+    )
     stipend_raw = ""
     for p in parts:
-        if "₹" in p:
+        if "₹" in p or re.search(r"(?:Rs\.?|INR)", p, re.IGNORECASE):
             stipend_raw = p
             break
+    if not stipend_raw:
+        for p in parts:
+            if re.search(r"\d{3,}\s*(?:/month|per month|lump\s*sum)", p, re.IGNORECASE):
+                stipend_raw = p
+                break
 
-    # ── Skills ─────────────────────────────────────────────────────
+    # ── Posted-at ────────────────────────────────────────────────
+    _POSTED_AT_RE = re.compile(
+        r"(?i)\b(today|yesterday|(\d+)\s*days?\s*ago|(\d+)\s*week?s?\s*ago|(\d+)\s*month?s?\s*ago)\b"
+    )
+    posted_at = ""
+    for p in parts:
+        m = _POSTED_AT_RE.search(p)
+        if m:
+            posted_at = m.group(0)
+            break
+
+    # ── Skills ───────────────────────────────────────────────────
     skills: list[str] = []
     skill_container = card.find("div", class_=re.compile(r"(skill|tag)", re.IGNORECASE))
     if skill_container:
@@ -359,6 +389,7 @@ def _extract_card_data(card: Tag) -> dict[str, Any] | None:
         "location": location,
         "stipend_raw": stipend_raw,
         "skills": skills,
+        "posted_at": posted_at,
         "url": url,
     }
 
@@ -513,6 +544,156 @@ def _passes_location_filter(card: dict[str, Any], allowed_locations: list[str]) 
 
 
 # ---------------------------------------------------------------------------
+# Keyword filter
+# ---------------------------------------------------------------------------
+
+
+def _passes_keyword_filter(title: str, keywords: list[str]) -> bool:
+    """Check whether *title* contains any significant token from *keywords*.
+
+    A token is significant if it is at least 3 characters long.  The match
+    is case-insensitive.
+
+    Args:
+        title: The job title to test.
+        keywords: Search phrases (e.g. ``"python backend"``).
+
+    Returns:
+        ``True`` if at least one significant word from any keyword appears
+        in the title.
+    """
+    title_lower = title.lower()
+    # Collect all words >= 3 chars from all keyword phrases
+    tokens: set[str] = set()
+    for phrase in keywords:
+        tokens.update(word.lower() for word in phrase.split() if len(word) >= 3)
+    return any(token in title_lower for token in tokens)
+
+
+# ---------------------------------------------------------------------------
+# Detail-page enrichment (JSON-LD)
+# ---------------------------------------------------------------------------
+
+
+def _parse_job_posting_jsonld(html: str) -> dict[str, Any] | None:
+    """Extract ``JobPosting`` structured data from a detail page.
+
+    Finds the first ``<script type="application/ld+json">`` tag whose
+    parsed JSON has ``@type`` equal to ``"JobPosting"`` (or containing it
+    in a list) and returns selected fields.
+
+    Returns a dict with keys *description*, *company*, *location*,
+    *stipend_raw*, *skills*, *title* — or ``None`` when no valid
+    ``JobPosting`` block is found.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+        # Normalise @type to a list for uniform checking
+        raw_type = data.get("@type") or data.get("type")
+        types = [raw_type] if isinstance(raw_type, str) else (raw_type or [])
+
+        if "JobPosting" not in types:
+            continue
+
+        title = data.get("title") or ""
+
+        desc_raw = data.get("description") or ""
+        if desc_raw:
+            desc_soup = BeautifulSoup(desc_raw, "html.parser")
+            description = desc_soup.get_text(separator=" ", strip=True)
+        else:
+            description = ""
+
+        org = data.get("hiringOrganization") or {}
+        if isinstance(org, dict):
+            company = org.get("name", "")
+        else:
+            company = str(org) if org else ""
+
+        location = ""
+        loc = data.get("jobLocation") or {}
+        if isinstance(loc, dict):
+            addr = loc.get("address") or {}
+            if isinstance(addr, dict):
+                location = addr.get("addressLocality", "")
+            elif isinstance(addr, str):
+                location = addr
+
+        stipend_raw = ""
+        salary = data.get("baseSalary") or {}
+        if isinstance(salary, dict):
+            value = salary.get("value") or {}
+            if isinstance(value, dict):
+                min_v = value.get("minValue")
+                max_v = value.get("maxValue")
+                if min_v is not None and max_v is not None:
+                    stipend_raw = f"₹{min_v:,.0f}-{max_v:,.0f} /month"
+                elif min_v is not None:
+                    stipend_raw = f"₹{min_v:,.0f} /month"
+
+        skills_raw = data.get("skills") or ""
+        if isinstance(skills_raw, str) and skills_raw:
+            skills = [s.strip() for s in skills_raw.split(",") if s.strip()]
+        elif isinstance(skills_raw, list):
+            skills = [str(s).strip() for s in skills_raw if s]
+        else:
+            skills = []
+
+        return {
+            "title": title,
+            "company": company,
+            "location": location,
+            "stipend_raw": stipend_raw,
+            "skills": skills,
+            "description": description,
+        }
+
+    return None
+
+
+async def _enrich_card(
+    client: httpx.AsyncClient,
+    card: dict[str, Any],
+) -> dict[str, Any]:
+    """Fetch the detail page for *card* and override fields from JSON-LD.
+
+    This is called **after** filters have already been applied, so the
+    extra HTTP request is only made for listings that will actually be
+    returned.
+
+    Gracefully handles fetch failures — returns the original *card*
+    unchanged when the detail page cannot be loaded or contains no
+    ``JobPosting`` structured data.
+    """
+    url = card.get("url")
+    if not url:
+        return card
+
+    try:
+        resp = await client.get(url, headers=DEFAULT_HEADERS, follow_redirects=True, timeout=5.0)
+        resp.raise_for_status()
+    except Exception:
+        logger.debug("Failed to fetch detail page for {} — skipping enrichment", url)
+        return card
+
+    parsed = _parse_job_posting_jsonld(resp.text)
+    if parsed is None:
+        return card
+
+    for key in ("title", "company", "location", "stipend_raw", "skills", "description"):
+        if parsed.get(key):
+            card[key] = parsed[key]
+
+    return card
+
+
+# ---------------------------------------------------------------------------
 # InternshalaScraper
 # ---------------------------------------------------------------------------
 
@@ -581,8 +762,10 @@ class InternshalaScraper:
         2. Parse HTML to extract card data.
         3. Apply stipend filter (``min_stipend`` threshold).
         4. Apply location filter.
-        5. Deduplicate by URL.
-        6. Convert to :class:`JobListing` models.
+        5. Apply keyword filter on card title.
+        6. Fetch detail pages for passing cards and enrich with JSON-LD.
+        7. Deduplicate by URL.
+        8. Convert to :class:`JobListing` models.
 
         Args:
             keywords: Search terms (e.g. ``"python backend intern"``).
@@ -623,13 +806,17 @@ class InternshalaScraper:
                 if keyword.lower().strip() == HEALTH_CHECK_KEYWORD and raw_count == 0:
                     health_check_failed = True
 
-                # Apply filters & deduplicate
+                # Apply filters, keyword check, enrichment & deduplicate
                 batch: list[JobListing] = []
                 for card in cards:
                     if not _passes_stipend_filter(card, self.min_stipend):
                         continue
                     if not _passes_location_filter(card, locations):
                         continue
+                    if not _passes_keyword_filter(card.get("title", ""), keywords):
+                        continue
+
+                    card = await _enrich_card(client, card)
 
                     job_url = card.get("url", "")
                     if job_url in seen_urls:
@@ -691,9 +878,10 @@ class InternshalaScraper:
             stipend_max=card.get("stipend_max"),
             stipend_raw=card.get("stipend_raw"),
             skills=card.get("skills", []),
-            description="",
+            description=card.get("description", ""),
             source="internshala",
             url=card.get("url", ""),
+            posted_at=card.get("posted_at"),
             is_paid=card.get("is_paid", False),
             is_remote=is_remote,
         )

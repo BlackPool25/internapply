@@ -9,6 +9,7 @@ automatically.
 from __future__ import annotations
 
 import json
+from datetime import date
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -36,6 +37,7 @@ class JobListing(BaseModel):
     source: str
     url: str
     posted_at: str | None = None
+    posted_at_date: date | None = None
     is_paid: bool = False
     is_remote: bool = False
     created_at: str | None = None
@@ -126,6 +128,7 @@ def job_listing_to_model(row: Any) -> JobListing:
         source=row.source,
         url=row.url,
         posted_at=row.posted_at,
+        posted_at_date=row.posted_at_date,
         is_paid=row.is_paid,
         is_remote=row.is_remote,
         created_at=str(row.created_at) if row.created_at else None,

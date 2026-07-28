@@ -32,18 +32,18 @@ class TestDatabaseInit:
 
     @pytest.mark.asyncio
     async def test_init_db(self, tmp_path):
-        """Database initialises with correct schema version (V1)."""
+        """Database initialises with correct schema version (V2)."""
         _reset_db_globals()
         db_path = str(tmp_path / "test_init.db")
 
         await database.init_db(db_path)
 
         version = await database.get_schema_version()
-        assert version == 1, f"Expected schema version 1 after init, got {version}"
+        assert version == 2, f"Expected schema version 2 after init, got {version}"
 
     @pytest.mark.asyncio
     async def test_schema_version(self, tmp_path):
-        """Schema version starts at 1 after initialisation."""
+        """Schema version starts at 2 after initialisation."""
         _reset_db_globals()
         db_path = str(tmp_path / "test_version.db")
 
@@ -54,7 +54,7 @@ class TestDatabaseInit:
         await database.init_db(db_path)
 
         version = await database.get_schema_version()
-        assert version == 1, f"Expected version 1 after init, got {version}"
+        assert version == 2, f"Expected version 2 after init, got {version}"
 
     @pytest.mark.asyncio
     async def test_migration_idempotent(self, tmp_path):
@@ -70,8 +70,8 @@ class TestDatabaseInit:
         await database.init_db(db_path)
         version2 = await database.get_schema_version()
 
-        assert version1 == 1
-        assert version2 == 1
+        assert version1 == 2
+        assert version2 == 2
         assert version1 == version2, "Schema version must not change across idempotent init"
 
     @pytest.mark.asyncio
@@ -85,4 +85,4 @@ class TestDatabaseInit:
         await database.init_db()  # no path → uses DEFAULT_DB_PATH
 
         version = await database.get_schema_version()
-        assert version == 1
+        assert version == 2
