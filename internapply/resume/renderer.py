@@ -17,18 +17,21 @@ DARK_GRAY = RGBColor(0x33, 0x33, 0x33)
 
 # ── Typography ──────────────────────────────────────────────────────────────
 FONT_NAME = "Arial"
-NAME_SIZE = Pt(18)
-SUMMARY_SIZE = Pt(10)
-SECTION_SIZE = Pt(12)
-BODY_SIZE = Pt(10)
-SMALL_SIZE = Pt(9)
-CONTACT_SIZE = Pt(9)
+NAME_SIZE = Pt(16)
+SUMMARY_SIZE = Pt(9.5)
+SECTION_SIZE = Pt(11)
+BODY_SIZE = Pt(9.5)
+SMALL_SIZE = Pt(8.5)
+CONTACT_SIZE = Pt(8.5)
 
 # ── Margins ─────────────────────────────────────────────────────────────────
-MARGIN = Inches(0.7)
+MARGIN = Inches(0.55)
 
 # ── Colors ──────────────────────────────────────────────────────────────────
 ACCENT_LINE = RGBColor(0xCC, 0xCC, 0xCC)
+
+# ── Page limits ──────────────────────────────────────────────────────────────
+MAX_PROJECTS = 4
 
 
 def _set_font(run, size: Pt, bold: bool = False, color: RGBColor = BLACK,
@@ -53,8 +56,8 @@ def _set_font(run, size: Pt, bold: bool = False, color: RGBColor = BLACK,
 def _add_section_heading(doc: Document, text: str):
     """Add an ATS-friendly section heading with a bottom border line."""
     para = doc.add_paragraph()
-    para.paragraph_format.space_before = Pt(8)
-    para.paragraph_format.space_after = Pt(3)
+    para.paragraph_format.space_before = Pt(5)
+    para.paragraph_format.space_after = Pt(2)
     para.paragraph_format.keep_with_next = True
     run = para.add_run(text.upper())
     _set_font(run, SECTION_SIZE, bold=True, color=BLACK)
@@ -74,9 +77,9 @@ def _add_section_heading(doc: Document, text: str):
 def _add_bullet(doc: Document, text: str, size: Pt = BODY_SIZE):
     """Add a bullet point."""
     para = doc.add_paragraph(style="List Bullet")
-    para.paragraph_format.space_before = Pt(1)
-    para.paragraph_format.space_after = Pt(1)
-    para.paragraph_format.line_spacing = Pt(12)
+    para.paragraph_format.space_before = Pt(0)
+    para.paragraph_format.space_after = Pt(0)
+    para.paragraph_format.line_spacing = Pt(11)
     para.clear()
     run = para.add_run(text)
     _set_font(run, size, color=DARK_GRAY)
@@ -117,8 +120,8 @@ def _add_project_block(doc: Document, name: str, tech: str, bullets: list[str],
     """Add a project entry with name, tech stack, and bullet points."""
     # Project name line
     para = doc.add_paragraph()
-    para.paragraph_format.space_before = Pt(4)
-    para.paragraph_format.space_after = Pt(1)
+    para.paragraph_format.space_before = Pt(2)
+    para.paragraph_format.space_after = Pt(0)
     para.paragraph_format.keep_with_next = True
     name_run = para.add_run(name)
     _set_font(name_run, BODY_SIZE, bold=True)
@@ -138,8 +141,8 @@ def _add_project_block(doc: Document, name: str, tech: str, bullets: list[str],
         tech_run = tech_para.add_run(tech)
         _set_font(tech_run, SMALL_SIZE, color=GRAY, italic=True)
 
-    # Bullets (max 3 for 1-page constraint)
-    for bullet in bullets[:3]:
+    # Bullets (max 2 for 1-page constraint)
+    for bullet in bullets[:2]:
         _add_bullet(doc, bullet, SMALL_SIZE)
 
 
@@ -253,14 +256,13 @@ def render_resume(data: dict[str, Any], output_path: str | Path,
     # ── Technical Skills ─────────────────────────────────────────────
     skills = data.get("skills_reordered", [])
     if skills:
-        _add_section_heading(doc, "Technical Skills")
-        # Group by categories if the source data has them
-        skill_text = ", ".join(skills[:15])
-        if len(skills) > 15:
-            skill_text += f" +{len(skills) - 15} more"
+        _add_section_heading(doc, "Key Skills")
+        skill_text = ", ".join(skills[:10])
+        if len(skills) > 10:
+            skill_text += f" (+{len(skills) - 10} more)"
         para = doc.add_paragraph()
-        para.paragraph_format.space_after = Pt(2)
-        para.paragraph_format.line_spacing = Pt(12)
+        para.paragraph_format.space_after = Pt(1)
+        para.paragraph_format.line_spacing = Pt(11)
         run = para.add_run(skill_text)
         _set_font(run, BODY_SIZE, color=DARK_GRAY)
     else:
@@ -276,7 +278,7 @@ def render_resume(data: dict[str, Any], output_path: str | Path,
     projects = data.get("projects", [])
     if projects:
         _add_section_heading(doc, "Projects")
-        for proj in projects:
+        for proj in projects[:MAX_PROJECTS]:
             name = proj.get("name", "")
             tech = proj.get("tech", "")
             bullets = proj.get("bullets", proj.get("description", []))
@@ -285,22 +287,22 @@ def render_resume(data: dict[str, Any], output_path: str | Path,
             url = proj.get("url", "")
             _add_project_block(doc, name, tech, bullets, url)
 
-    # ── Additional (compact) ─────────────────────────────────────────
+    # ── Additional (one-liner at bottom) ────────────────────────────
     additional = data.get("additional", [])
-    if additional:
-        _add_section_heading(doc, "Additional")
+    oss = next((a for a in additional if "open source" in a.get("label", "").lower()), None)
+    hack = next((a for a in additional if "hackathon" in a.get("label", "").lower()), None)
+    extras = []
+    if oss:
+        extras.append(oss["value"][:80])
+    if hack:
+        extras.append(hack["value"][:60])
+    if extras:
         add_para = doc.add_paragraph()
+        add_para.paragraph_format.space_before = Pt(1)
         add_para.paragraph_format.space_after = Pt(0)
-        add_para.paragraph_format.line_spacing = Pt(12)
-        items = []
-        for a in additional:
-            label = a.get("label", "")
-            value = a.get("value", "")
-            if label and value:
-                items.append(f"{label}: {value[:80]}")
-        if items:
-            add_run = add_para.add_run(" | ".join(items))
-            _set_font(add_run, SMALL_SIZE, color=GRAY)
+        add_para.paragraph_format.line_spacing = Pt(10)
+        add_run = add_para.add_run(" | ".join(extras))
+        _set_font(add_run, Pt(7.5), color=GRAY)
 
     # ── Save ─────────────────────────────────────────────────────────
     out = Path(output_path)
