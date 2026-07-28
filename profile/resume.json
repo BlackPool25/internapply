@@ -142,7 +142,7 @@
   "additional": [
     {
       "label": "Open Source Contributor",
-      "value": "Contributed to link-society/flowg (AI workflow engine), opentofu (infrastructure-as-code tool), milvus-io/milvus-proto (vector database protocol), zalando/skipper (HTTP router), and openchoreo/sample-workloads — across Go, TypeScript, and Python codebases"
+      "value": "8 merged PRs across 6 projects: opentofu/opentofu (29.6k★) — fixed plan serialization bug in Go; zalando/skipper (3.3k★) — added base64 encode/decode HTTP filters in Go; link-society/flowg (151★) — implemented FoundationDB storage backend in Go; milvus-io/milvus-proto — added UUID type to vector DB protocol; Fmarzochi/EGC — fixed telemetry data integrity bug; openchoreo/sample-workloads — fixed multi-arch Docker builds"
     },
     {
       "label": "Open Source Portfolio",
