@@ -18,12 +18,15 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import mimetypes
 import os
 import uuid
-from datetime import UTC, datetime
+from datetime import date, datetime
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any
 
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request
@@ -129,8 +132,9 @@ class GmailSender:
         body: str,
         from_email: str | None = None,
         dry_run: bool = False,
+        attachment_path: str | Path | None = None,
     ) -> bool:
-        """Send an email via the Gmail API.
+        """Send an email via the Gmail API, optionally with a file attachment.
 
         Rate-limited to 20 emails per day per Gmail account.  Requires a
         previously-saved OAuth token (see :meth:`authenticate`).
@@ -139,10 +143,9 @@ class GmailSender:
             to: Recipient email address.
             subject: Email subject line.
             body: Plain-text email body.
-            from_email: Sender address.  Defaults to ``GMAIL_SENDER_EMAIL``
-                from config.
-            dry_run: If ``True``, validate inputs and check rate limit but
-                do not actually send.  Returns ``True`` if send would succeed.
+            from_email: Sender address.  Defaults to ``GMAIL_SENDER_EMAIL``.
+            dry_run: If ``True``, validate and check rate limit but do not send.
+            attachment_path: Optional file to attach (e.g. tailored resume).
 
         Returns:
             ``True`` if the email was sent (or would have been sent during
@@ -170,8 +173,25 @@ class GmailSender:
                 _MAX_SENDS_PER_DAY,
             )
 
-        # ── Build the raw RFC 2822 message ────────────────────────────────
-        msg = MIMEText(body, "plain", "utf-8")
+        # ── Build RFC 2822 message with optional attachment ────────────────
+        if attachment_path:
+            ap = Path(attachment_path)
+            if ap.exists():
+                msg = MIMEMultipart("mixed")
+                msg.attach(MIMEText(body, "plain", "utf-8"))
+                mime_type, _ = mimetypes.guess_type(str(ap))
+                if mime_type is None:
+                    mime_type = "text/markdown" if ap.suffix == ".md" else "application/octet-stream"
+                with open(ap, "rb") as f:
+                    part = MIMEApplication(f.read(), _subtype=mime_type.split("/")[-1])
+                    part.add_header("Content-Disposition", "attachment", filename=ap.name)
+                    msg.attach(part)
+            else:
+                logger.warning("Attachment not found: {} — sending without", ap)
+                msg = MIMEText(body, "plain", "utf-8")
+        else:
+            msg = MIMEText(body, "plain", "utf-8")
+
         msg["To"] = to
         msg["From"] = sender
         msg["Subject"] = subject
