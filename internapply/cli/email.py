@@ -114,41 +114,39 @@ async def _load_job(job_id: int) -> dict[str, Any] | None:
     return job_listing_to_model(row).model_dump()
 
 
-async def _list_pending_applications(
-    session: Any,
-) -> list[dict[str, Any]]:
+async def _list_pending_applications() -> list[dict[str, Any]]:
     """Return applications that have contacts but email not yet sent.
 
-    Each result is enriched with ``_job_title`` and ``_company`` keys
-    from the associated job listing.
+    Creates its own DB session.  Each result is enriched with
+    ``_job_title`` and ``_company`` keys.
     """
     from sqlalchemy import select
 
-    from internapply.database import ORMApplication
+    from internapply.database import ORMApplication, get_session, init_db
     from internapply.models import application_to_model
 
-    result = await session.execute(
-        select(ORMApplication)
-        .where(ORMApplication.email_sent.is_(False))
-        .where(ORMApplication.email_contacts_json.isnot(None))
-        .order_by(ORMApplication.id),
-    )
+    cfg = get_config()
+    await init_db(cfg.DATABASE_PATH)
 
-    enriched: list[dict[str, Any]] = []
-    for row in result.scalars().all():
-        app = application_to_model(row)
-        data = app.model_dump()
+    async with get_session() as session:
+        result = await session.execute(
+            select(ORMApplication)
+            .where(ORMApplication.email_sent.is_(False))
+            .where(ORMApplication.email_contacts_json.isnot(None))
+            .order_by(ORMApplication.id),
+        )
 
-        # Enrich with job info
-        job = await _load_job(app.job_id)
-        if job:
-            data["_job_title"] = job.get("title", "?")
-            data["_company"] = job.get("company", "?")
-        else:
-            data["_job_title"] = "?"
-            data["_company"] = "?"
+        enriched: list[dict[str, Any]] = []
+        for row in result.scalars().all():
+            app = application_to_model(row)
+            data = app.model_dump()
 
-        enriched.append(data)
+            job = await _load_job(app.job_id)
+            if job:
+                data["_job_title"] = job.get("title", "?")
+                data["_company"] = job.get("company", "?")
+
+            enriched.append(data)
 
     return enriched
 
