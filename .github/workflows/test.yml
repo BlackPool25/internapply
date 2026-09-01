@@ -62,23 +62,24 @@ jobs:
         run: |
           pip install -e ".[dev]"
 
-      - name: Ruff check
-        run: |
-          ruff check . 2>&1 | head -n 100
-          ruff check . --exit-zero 2>&1 | tail -n 20
+      - name: Ruff check (informational, warning-only)
+        # ponytail: warning-only while 574 existing violations are triaged; gate is pytest/alembic/build
+        run: ruff check . --exit-zero
         continue-on-error: true
 
       - name: Run tests
         run: |
-          pytest -q 2>&1 | tail -n 40
+          set -o pipefail
+          pytest -q 2>&1 | tee /tmp/pytest.log
+          # pipefail ensures pytest exit code is propagated, not tail/tee's
 
       - name: Alembic check
         run: |
-          alembic -c backend/alembic.ini check 2>&1 | tail -n 20
-          alembic -c backend/alembic.ini upgrade head 2>&1 | tail -n 20
+          set -o pipefail
+          alembic -c backend/alembic.ini check 2>&1 | tee /tmp/alembic-check.log
+          alembic -c backend/alembic.ini upgrade head 2>&1 | tee /tmp/alembic-upgrade.log
         env:
           DATABASE_URL: postgresql+asyncpg://internapply:test@127.0.0.1:5432/internapply
-        continue-on-error: true
 
   frontend:
     name: frontend
@@ -97,13 +98,19 @@ jobs:
       - name: Install
         run: npm install --legacy-peer-deps
 
-      - name: Lint
-        run: npm run lint 2>&1 | tail -n 30
+      - name: Lint (warning-only)
+        # ponytail: warning-only; Build is the gate. Remove continue-on-error when lint is clean.
+        run: npm run lint 2>&1 | tee /tmp/lint.log
         continue-on-error: true
 
-      - name: Typecheck
-        run: npx tsc --noEmit 2>&1 | tail -n 30
+      - name: Typecheck (warning-only)
+        # ponytail: warning-only; Build is the gate. Remove continue-on-error when typecheck is clean.
+        run: |
+          set -o pipefail
+          npx tsc --noEmit 2>&1 | tee /tmp/typecheck.log
         continue-on-error: true
 
       - name: Build
-        run: npm run build 2>&1 | tail -n 40
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee /tmp/build.log
