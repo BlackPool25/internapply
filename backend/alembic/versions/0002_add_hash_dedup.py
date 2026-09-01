@@ -37,17 +37,17 @@ def _table_exists(table: str) -> bool:
 def upgrade() -> None:
     # offline SQL generation (``--sql``) has no inspector — emit unconditional DDL
     if context.is_offline_mode():
-        for col, typ in [
-            ("canonical_id", sa.String(length=64)),
-            ("jd_hash", sa.String(length=64)),
-            ("simhash", sa.BigInteger()),
-            ("etag", sa.String(length=255)),
-            ("change_log", postgresql.JSONB()),
-            ("source_ats", sa.String(length=32)),
-            ("last_seen_at", sa.DateTime(timezone=True)),
+        for col, typ, nullable in [
+            ("canonical_id", sa.String(length=64), False),
+            ("jd_hash", sa.String(length=64), True),
+            ("simhash", sa.BigInteger(), True),
+            ("etag", sa.String(length=255), True),
+            ("change_log", postgresql.JSONB(), True),
+            ("source_ats", sa.String(length=32), True),
+            ("last_seen_at", sa.DateTime(timezone=True), True),
         ]:
             try:
-                op.add_column("job_listings", sa.Column(col, typ, nullable=True))
+                op.add_column("job_listings", sa.Column(col, typ, nullable=nullable))
             except Exception:
                 pass
         try:
@@ -90,7 +90,7 @@ def upgrade() -> None:
     # online — idempotent adds
     if _table_exists("job_listings"):
         if not _col_exists("job_listings", "canonical_id"):
-            op.add_column("job_listings", sa.Column("canonical_id", sa.String(length=64), nullable=True))
+            op.add_column("job_listings", sa.Column("canonical_id", sa.String(length=64), nullable=False))
         if not _col_exists("job_listings", "jd_hash"):
             op.add_column("job_listings", sa.Column("jd_hash", sa.String(length=64), nullable=True))
         if not _col_exists("job_listings", "simhash"):

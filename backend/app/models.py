@@ -55,9 +55,7 @@ class JobListing(Base):
     is_paid: Mapped[bool] = mapped_column(Boolean, default=False)
     is_remote: Mapped[bool] = mapped_column(Boolean, default=False)
     # hash/dedup fields — 64 hex (sha256), not 128
-    canonical_id: Mapped[str] = mapped_column(
-        String(64), unique=True, index=True, nullable=False
-    )
+    canonical_id: Mapped[str] = mapped_column(String(64), nullable=False)
     jd_hash: Mapped[str | None] = mapped_column(
         String(64), index=True, nullable=True
     )
@@ -81,6 +79,8 @@ class JobListing(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint("canonical_id", name="uq_job_listings_canonical_id"),
+        Index("ix_job_listings_canonical_id", "canonical_id", unique=True),
         Index("ix_job_listings_source", "source"),
     )
 
