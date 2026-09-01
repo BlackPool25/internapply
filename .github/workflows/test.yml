@@ -76,8 +76,8 @@ jobs:
       - name: Alembic check
         run: |
           set -o pipefail
-          alembic -c backend/alembic.ini check 2>&1 | tee /tmp/alembic-check.log
           alembic -c backend/alembic.ini upgrade head 2>&1 | tee /tmp/alembic-upgrade.log
+          alembic -c backend/alembic.ini check 2>&1 | tee /tmp/alembic-check.log
         env:
           DATABASE_URL: postgresql+asyncpg://internapply:test@127.0.0.1:5432/internapply
 

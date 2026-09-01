@@ -13,13 +13,9 @@ import {
   Stack,
   Skeleton,
   ThemeIcon,
-  Divider,
   Paper,
   Anchor,
-  TextInput,
-  Textarea,
   ActionIcon,
-  Tooltip,
   Alert,
   CopyButton,
 } from "@mantine/core";
@@ -36,7 +32,6 @@ import {
   ExternalLink,
   Edit3,
   Eye,
-  CheckCheck,
   Send,
   Linkedin,
   Briefcase,
@@ -54,7 +49,6 @@ import {
   getVerifierState,
 } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
-import type { Opportunity } from "@/lib/types";
 import { notifications } from "@mantine/notifications";
 
 const STATUS_COLORS: Record<string, string> = {
