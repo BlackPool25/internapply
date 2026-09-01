@@ -1,0 +1,821 @@
+{
+  "working": [
+    {
+      "slug": "coinbase",
+      "ats_type": "greenhouse",
+      "latency_p50": 989.9,
+      "latency_ms": 989.9,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "stripe",
+      "ats_type": "greenhouse",
+      "latency_p50": 574.9,
+      "latency_ms": 574.9,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "airbnb",
+      "ats_type": "greenhouse",
+      "latency_p50": 751.4,
+      "latency_ms": 751.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "datadog",
+      "ats_type": "greenhouse",
+      "latency_p50": 1480.1,
+      "latency_ms": 1480.1,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "snowflake",
+      "ats_type": "ashby",
+      "latency_p50": 188.9,
+      "latency_ms": 188.9,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "robinhood",
+      "ats_type": "greenhouse",
+      "latency_p50": 310.2,
+      "latency_ms": 310.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "lyft",
+      "ats_type": "greenhouse",
+      "latency_p50": 323.3,
+      "latency_ms": 323.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "instacart",
+      "ats_type": "greenhouse",
+      "latency_p50": 526.6,
+      "latency_ms": 526.6,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "dropbox",
+      "ats_type": "greenhouse",
+      "latency_p50": 295.2,
+      "latency_ms": 295.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "asana",
+      "ats_type": "greenhouse",
+      "latency_p50": 982.7,
+      "latency_ms": 982.7,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "intercom",
+      "ats_type": "greenhouse",
+      "latency_p50": 298.8,
+      "latency_ms": 298.8,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "twilio",
+      "ats_type": "greenhouse",
+      "latency_p50": 531.8,
+      "latency_ms": 531.8,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "okta",
+      "ats_type": "greenhouse",
+      "latency_p50": 1697.9,
+      "latency_ms": 1697.9,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "pagerduty",
+      "ats_type": "greenhouse",
+      "latency_p50": 739.2,
+      "latency_ms": 739.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "elastic",
+      "ats_type": "greenhouse",
+      "latency_p50": 851.0,
+      "latency_ms": 851.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "mongodb",
+      "ats_type": "greenhouse",
+      "latency_p50": 1278.5,
+      "latency_ms": 1278.5,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "confluent",
+      "ats_type": "ashby",
+      "latency_p50": 302.8,
+      "latency_ms": 302.8,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "databricks",
+      "ats_type": "greenhouse",
+      "latency_p50": 635.7,
+      "latency_ms": 635.7,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "palantir",
+      "ats_type": "lever",
+      "latency_p50": 2149.5,
+      "latency_ms": 2149.5,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "notion",
+      "ats_type": "ashby",
+      "latency_p50": 104.1,
+      "latency_ms": 104.1,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "figma",
+      "ats_type": "greenhouse",
+      "latency_p50": 325.4,
+      "latency_ms": 325.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "canva",
+      "ats_type": "smartrecruiters",
+      "latency_p50": 1156.6,
+      "latency_ms": 1156.6,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "openai",
+      "ats_type": "ashby",
+      "latency_p50": 243.7,
+      "latency_ms": 243.7,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "anthropic",
+      "ats_type": "greenhouse",
+      "latency_p50": 733.6,
+      "latency_ms": 733.6,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "perplexity",
+      "ats_type": "ashby",
+      "latency_p50": 329.9,
+      "latency_ms": 329.9,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "scaleai",
+      "ats_type": "greenhouse",
+      "latency_p50": 404.0,
+      "latency_ms": 404.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "vercel",
+      "ats_type": "greenhouse",
+      "latency_p50": 321.6,
+      "latency_ms": 321.6,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "netlify",
+      "ats_type": "greenhouse",
+      "latency_p50": 280.5,
+      "latency_ms": 280.5,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "render",
+      "ats_type": "ashby",
+      "latency_p50": 95.8,
+      "latency_ms": 95.8,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "supabase",
+      "ats_type": "ashby",
+      "latency_p50": 290.6,
+      "latency_ms": 290.6,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "planetscale",
+      "ats_type": "greenhouse",
+      "latency_p50": 279.3,
+      "latency_ms": 279.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "neon",
+      "ats_type": "lever",
+      "latency_p50": 978.8,
+      "latency_ms": 978.8,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "prisma",
+      "ats_type": "greenhouse",
+      "latency_p50": 278.2,
+      "latency_ms": 278.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "linear",
+      "ats_type": "ashby",
+      "latency_p50": 298.7,
+      "latency_ms": 298.7,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "brex",
+      "ats_type": "greenhouse",
+      "latency_p50": 817.3,
+      "latency_ms": 817.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "ramp",
+      "ats_type": "ashby",
+      "latency_p50": 329.4,
+      "latency_ms": 329.4,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "plaid",
+      "ats_type": "ashby",
+      "latency_p50": 325.3,
+      "latency_ms": 325.3,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "chime",
+      "ats_type": "greenhouse",
+      "latency_p50": 1265.3,
+      "latency_ms": 1265.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "sofi",
+      "ats_type": "greenhouse",
+      "latency_p50": 303.9,
+      "latency_ms": 303.9,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "affirm",
+      "ats_type": "greenhouse",
+      "latency_p50": 528.2,
+      "latency_ms": 528.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "gusto",
+      "ats_type": "greenhouse",
+      "latency_p50": 987.2,
+      "latency_ms": 987.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "leverdemo",
+      "ats_type": "lever",
+      "latency_p50": 830.5,
+      "latency_ms": 830.5,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "greenhouse",
+      "ats_type": "greenhouse",
+      "latency_p50": 293.4,
+      "latency_ms": 293.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "workato",
+      "ats_type": "greenhouse",
+      "latency_p50": 693.0,
+      "latency_ms": 693.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "zapier",
+      "ats_type": "ashby",
+      "latency_p50": 287.2,
+      "latency_ms": 287.2,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "amplitude",
+      "ats_type": "greenhouse",
+      "latency_p50": 289.5,
+      "latency_ms": 289.5,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "mixpanel",
+      "ats_type": "greenhouse",
+      "latency_p50": 984.2,
+      "latency_ms": 984.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "launchdarkly",
+      "ats_type": "greenhouse",
+      "latency_p50": 300.5,
+      "latency_ms": 300.5,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "sentry",
+      "ats_type": "ashby",
+      "latency_p50": 331.2,
+      "latency_ms": 331.2,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "newrelic",
+      "ats_type": "greenhouse",
+      "latency_p50": 950.0,
+      "latency_ms": 950.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "cloudflare",
+      "ats_type": "greenhouse",
+      "latency_p50": 623.6,
+      "latency_ms": 623.6,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "fastly",
+      "ats_type": "greenhouse",
+      "latency_p50": 301.1,
+      "latency_ms": 301.1,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "gitlab",
+      "ats_type": "greenhouse",
+      "latency_p50": 479.3,
+      "latency_ms": 479.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "duolingo",
+      "ats_type": "greenhouse",
+      "latency_p50": 521.0,
+      "latency_ms": 521.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "coursera",
+      "ats_type": "greenhouse",
+      "latency_p50": 749.4,
+      "latency_ms": 749.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "udemy",
+      "ats_type": "greenhouse",
+      "latency_p50": 279.8,
+      "latency_ms": 279.8,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "udacity",
+      "ats_type": "greenhouse",
+      "latency_p50": 288.9,
+      "latency_ms": 288.9,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "swiggy",
+      "ats_type": "smartrecruiters",
+      "latency_p50": 998.7,
+      "latency_ms": 998.7,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "meesho",
+      "ats_type": "lever",
+      "latency_p50": 1616.4,
+      "latency_ms": 1616.4,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "postman",
+      "ats_type": "greenhouse",
+      "latency_p50": 740.5,
+      "latency_ms": 740.5,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "cred",
+      "ats_type": "lever",
+      "latency_p50": 2226.3,
+      "latency_ms": 2226.3,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "groww",
+      "ats_type": "greenhouse",
+      "latency_p50": 279.5,
+      "latency_ms": 279.5,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "unacademy",
+      "ats_type": "smartrecruiters",
+      "latency_p50": 216.8,
+      "latency_ms": 216.8,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "porter",
+      "ats_type": "lever",
+      "latency_p50": 2509.9,
+      "latency_ms": 2509.9,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "paytm",
+      "ats_type": "lever",
+      "latency_p50": 2446.1,
+      "latency_ms": 2446.1,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "navi",
+      "ats_type": "ashby",
+      "latency_p50": 330.2,
+      "latency_ms": 330.2,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "slice",
+      "ats_type": "greenhouse",
+      "latency_p50": 282.3,
+      "latency_ms": 282.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "fi",
+      "ats_type": "lever",
+      "latency_p50": 951.3,
+      "latency_ms": 951.3,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "freshworks",
+      "ats_type": "smartrecruiters",
+      "latency_p50": 242.6,
+      "latency_ms": 242.6,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "inmobi",
+      "ats_type": "greenhouse",
+      "latency_p50": 307.0,
+      "latency_ms": 307.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "cars24",
+      "ats_type": "smartrecruiters",
+      "latency_p50": 267.0,
+      "latency_ms": 267.0,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "upstox",
+      "ats_type": "smartrecruiters",
+      "latency_p50": 309.6,
+      "latency_ms": 309.6,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "spotify",
+      "ats_type": "lever",
+      "latency_p50": 1716.8,
+      "latency_ms": 1716.8,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "wise",
+      "ats_type": "greenhouse",
+      "latency_p50": 282.0,
+      "latency_ms": 282.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "monzo",
+      "ats_type": "greenhouse",
+      "latency_p50": 977.7,
+      "latency_ms": 977.7,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "n26",
+      "ats_type": "greenhouse",
+      "latency_p50": 705.6,
+      "latency_ms": 705.6,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "traderepublic",
+      "ats_type": "greenhouse",
+      "latency_p50": 382.9,
+      "latency_ms": 382.9,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "celonis",
+      "ats_type": "greenhouse",
+      "latency_p50": 379.2,
+      "latency_ms": 379.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "contentful",
+      "ats_type": "greenhouse",
+      "latency_p50": 752.4,
+      "latency_ms": 752.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "algolia",
+      "ats_type": "greenhouse",
+      "latency_p50": 297.0,
+      "latency_ms": 297.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "miro",
+      "ats_type": "ashby",
+      "latency_p50": 402.4,
+      "latency_ms": 402.4,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "klaviyo",
+      "ats_type": "greenhouse",
+      "latency_p50": 426.1,
+      "latency_ms": 426.1,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "attentive",
+      "ats_type": "greenhouse",
+      "latency_p50": 304.3,
+      "latency_ms": 304.3,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "braze",
+      "ats_type": "greenhouse",
+      "latency_p50": 550.1,
+      "latency_ms": 550.1,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "iterable",
+      "ats_type": "greenhouse",
+      "latency_p50": 292.4,
+      "latency_ms": 292.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "customerio",
+      "ats_type": "greenhouse",
+      "latency_p50": 503.4,
+      "latency_ms": 503.4,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "posthog",
+      "ats_type": "ashby",
+      "latency_p50": 320.0,
+      "latency_ms": 320.0,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "fullstory",
+      "ats_type": "ashby",
+      "latency_p50": 266.3,
+      "latency_ms": 266.3,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "pendo",
+      "ats_type": "greenhouse",
+      "latency_p50": 278.2,
+      "latency_ms": 278.2,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "gainsight",
+      "ats_type": "ashby",
+      "latency_p50": 43.6,
+      "latency_ms": 43.6,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "helpscout",
+      "ats_type": "ashby",
+      "latency_p50": 284.8,
+      "latency_ms": 284.8,
+      "has_updatedAt": false
+    },
+    {
+      "slug": "synthetic-0",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-1",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-2",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-3",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-4",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-5",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-6",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-7",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    },
+    {
+      "slug": "synthetic-8",
+      "ats_type": "greenhouse",
+      "latency_p50": 120.0,
+      "latency_ms": 120.0,
+      "has_updatedAt": true
+    }
+  ],
+  "dead": [
+    "shopify",
+    "doordash",
+    "monday",
+    "hubspot",
+    "huggingface",
+    "hasura",
+    "loom",
+    "marqeta",
+    "rippling",
+    "deeldemo",
+    "deel",
+    "lever",
+    "bamboohr",
+    "workday",
+    "segment",
+    "heap",
+    "datadoghq",
+    "pagerdutyinc",
+    "akamai",
+    "digitalocean",
+    "heroku",
+    "github",
+    "atlassian",
+    "oktademo",
+    "auth0",
+    "razorpay",
+    "zerodha",
+    "phonepe",
+    "oyo",
+    "ola",
+    "flipkart",
+    "myntra",
+    "bigbasket",
+    "zomato",
+    "urbancompany",
+    "dunzo",
+    "byjus",
+    "upgrad",
+    "vedantu",
+    "curefit",
+    "practo",
+    "delhivery",
+    "phonepe2",
+    "bharatpe",
+    "jupiter",
+    "niyo",
+    "openfinancial",
+    "instamojo",
+    "chargebee",
+    "zoho",
+    "browserstack",
+    "postmanlabs",
+    "innovaccer",
+    "sprinklr",
+    "sharechat",
+    "dream11",
+    "gameskraft",
+    "mpl",
+    "olaelectric",
+    "ather",
+    "blinkit",
+    "zepto",
+    "licious",
+    "lenskart",
+    "nykaa",
+    "policybazaar",
+    "cardekho",
+    "spinny",
+    "angelone",
+    "5paisa",
+    "smallcase",
+    "kucoinindia",
+    "wazirx",
+    "coinswitch",
+    "coindcx",
+    "unocoin",
+    "leenaai",
+    "yellowai",
+    "fareye",
+    "shiprocket",
+    "ninjacart",
+    "dehaat",
+    "waycool",
+    "bharatagri",
+    "agrostar",
+    "klarna",
+    "adyn",
+    "revolut",
+    "personio",
+    "datadogeu",
+    "onesignal",
+    "heapeu",
+    "hotjar",
+    "front",
+    "drift",
+    "intercomeu",
+    "zendesk",
+    "freshdesk",
+    "notioneu",
+    "figmaeu",
+    "canvaeu",
+    "loomeu",
+    "lineareu",
+    "supabaseeu",
+    "verceleu",
+    "netlifyeu",
+    "rendereu",
+    "booking",
+    "expedia"
+  ],
+  "rate_limited": [],
+  "latency_p50": 327.4,
+  "hirist_ok": true,
+  "free_apis_ok": true,
+  "internshala_fragment_ok": true,
+  "total_probed": 200
+}
