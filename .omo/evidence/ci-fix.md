@@ -54,3 +54,13 @@ CI expectation: `gh run view <id> --log-failed` should show `backend (3.11)` and
 | 10 | Slack/Discord notify | 🔜 next | `8398a7/action-slack@v3` on failure, free |
 
 No paid services added. Cron `17 3 * * *` preserved. Concurrency groups preserved (daily `internapply-db` not removed).
+
+## Final Verification 2026-09-01
+
+- Latest green run: https://github.com/BlackPool25/internapply/actions/runs/33532064763
+  - backend (3.11) ✓ 1m07s
+  - backend (3.12) ✓ 55s
+  - frontend ✓ 44s (npm install --legacy-peer-deps + lint/typecheck/build)
+- Previous failure reason: `ModuleNotFoundError: No module named 'backend'` fixed via `PYTHONPATH: .` + `pip install -e ".[dev]"` + postgres/redis services
+- Frontend failure `npm ci` requires lockfile fixed via `npm install --legacy-peer-deps` (no committed package-lock.json, uses bun.lock)
+- Daily-run spurious 0s failure on push fixed: moved `PYTHONPATH` from workflow env (invalid context) to job env, fixed `secrets` in `if` via bash check — actionlint clean, no more push-triggered daily-run failure.
