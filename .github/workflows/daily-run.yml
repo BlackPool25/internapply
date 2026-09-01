@@ -21,9 +21,6 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.12"
-  DATABASE_URL: postgresql+asyncpg://internapply:test@127.0.0.1:5432/internapply
-  REDIS_URL: redis://127.0.0.1:6379/0
-  PYTHONPATH: ${{ github.workspace }}
 
 jobs:
   run:
@@ -33,6 +30,11 @@ jobs:
     permissions:
       actions: read
       contents: read
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://internapply:test@127.0.0.1:5432/internapply
+      REDIS_URL: redis://127.0.0.1:6379/0
+      PYTHONPATH: .
 
     services:
       postgres:
