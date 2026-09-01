@@ -2,9 +2,9 @@
 
 ## Overview
 
-InternApply is an automated internship application system. It discovers paid backend internships (Python/Java, remote/Bangalore) from Internshala, analyzes job descriptions, tailors your resume per company using LLM, generates cover letters, finds hiring manager emails via Hunter.io, sends cold emails with tailored resume attached, and auto-applies on Internshala via Playwright.
+InternApply is an automated internship application system. It discovers paid backend internships (Python/Java, remote/Bangalore) from ATS boards, Hirist, Unstop, Internshala, JobSpy, and free overflow feeds, filters with deterministic hash dedup, saves to Postgres, and tailors resumes on demand via an opencode skill with a verifier gate.
 
-**Tech Stack**: Python 3.12, LangGraph, OpenCode Go (deepseek-v4-flash), SQLite, Playwright, Gmail API, Hunter.io, python-docx
+**Tech Stack**: Python 3.12, LangGraph, OpenCode Go (deepseek-v4-flash), Postgres 16 + asyncpg + Alembic, Redis 7 + arq, httpx + tenacity, python-docx
 
 ---
 
@@ -12,71 +12,110 @@ InternApply is an automated internship application system. It discovers paid bac
 
 ```
 ~/projects/internapply/
-├── internapply/
-│   ├── __init__.py
-│   ├── config.py              # Pydantic-settings config from .env
-│   ├── database.py            # Async SQLAlchemy + SQLite + migrations
-│   ├── models.py              # Pydantic v2 data models
-│   ├── llm.py                 # OpenCode Go API wrapper (OpenAI-compatible)
+├── internapply/                  # Legacy CLI package (SQLite mirror)
+│   ├── config.py                 # Pydantic-settings config from .env (lazy boards)
+│   ├── database.py               # Async SQLAlchemy — Postgres primary, SQLite fallback
+│   ├── models.py                 # Pydantic v2 data models
+│   ├── llm.py                    # OpenCode Go API wrapper (OpenAI-compatible)
 │   │
-│   ├── discovery/             # Job discovery modules
-│   │   ├── internshala.py     # HTTP scraper + detail page enrichment via JSON-LD
-│   │   └── naukri.py          # Apify-only backend (dead actor — not used)
+│   ├── discovery/                # Job discovery modules
+│   │   ├── ats/                  # Tier0: Greenhouse, Lever, Ashby, SmartRecruiters
+│   │   ├── hirist.py             # Tier1: Hirist gladiator.hirist.tech POST
+│   │   ├── unstop.py             # Tier1: Unstop corrected API
+│   │   ├── internshala_xhr.py    # Tier1: Internshala XHR fragment parser
+│   │   ├── free_apis.py          # Tier3 overflow: Arbeitnow/Remotive/TheMuse/Jobicy
+│   │   ├── jobspy_linkedin.py    # Tier2: JobSpy Naukri/Indeed + Tier3 LinkedIn overflow
+│   │   ├── hash_utils.py         # canonical_id 64, jd_hash, simhash
+│   │   └── freelance/            # Freelancer RSS + Internshala freelance XHR
 │   │
-│   ├── resume/                # Resume engine
-│   │   ├── parser.py          # Parses JS generator → structured JSON
-│   │   ├── analyzer.py        # JD skill extraction (LLM + deterministic fallback)
-│   │   ├── tailor.py          # LLM resume tailoring + Markdown renderer
-│   │   ├── verifier.py        # Deterministic hallucination gate (6 checks)
-│   │   ├── scorer.py          # ATS keyword scorer (0-100, deterministic)
-│   │   ├── cover_letter.py    # LLM cover letter + humanization
-│   │   └── renderer.py        # Professional DOCX resume generator
+│   ├── resume/                   # Resume engine
+│   │   ├── parser.py             # Parses JS generator → structured JSON
+│   │   ├── analyzer.py           # JD skill extraction (LLM + deterministic fallback)
+│   │   ├── tailor.py             # LLM resume tailoring + Markdown renderer
+│   │   ├── verifier.py           # Deterministic hallucination gate (6 checks, WARN@80)
+│   │   ├── scorer.py             # ATS keyword scorer (0-100, deterministic)
+│   │   ├── cover_letter.py       # LLM cover letter + humanization
+│   │   └── renderer.py           # Professional DOCX resume generator (96.7% parse)
 │   │
-│   ├── outreach/              # Email outreach
-│   │   ├── email_finder.py    # Hunter.io API + domain extraction + caching
-│   │   └── sender.py          # Gmail API + encrypted tokens + attachments
+│   ├── pipeline/                 # Truncated orchestrator (3 nodes)
+│   │   ├── state.py              # PipelineState TypedDict
+│   │   ├── graph.py              # StateGraph definition (3 nodes: discover→filter→save)
+│   │   └── nodes.py              # Pipeline node functions
 │   │
-│   ├── apply/                 # Auto-apply
-│   │   ├── browser.py         # Playwright CDP browser manager
-│   │   └── internshala.py     # Internshala form submission
-│   │
-│   ├── pipeline/              # LangGraph orchestration
-│   │   ├── state.py           # PipelineState TypedDict
-│   │   ├── graph.py           # StateGraph definition (7 nodes)
-│   │   └── nodes.py           # Pipeline node functions (real implementations)
-│   │
-│   └── cli/                   # CLI interface
-│       ├── main.py            # Typer app entry point
-│       ├── resume.py          # Resume management commands
-│       ├── discover.py        # Discovery command
-│       ├── tailor.py          # Resume tailoring command
-│       └── email.py           # Email management + Gmail setup
-│       └── doctor.py          # System check command
+│   └── cli/                      # CLI interface
+│       ├── main.py               # Typer app entry point
+│       ├── resume.py             # Resume management commands
+│       ├── discover.py           # Discovery command
+│       ├── tailor.py             # Resume tailoring command (skill on-demand)
+│       └── doctor.py             # System check command
 │
-├── tests/                     # 63 tests across 7 test files
-├── .github/workflows/         # CI/CD + daily scheduled runs
-├── profile/
-│   ├── resume.json            # Master resume (canonical source)
-│   └── github_data.json       # GitHub profile data
-├── data/
-│   └── internapply.db         # SQLite database
-├── applications/              # Generated applications per company
-├── .env                       # API keys and configuration
-├── pyproject.toml             # Dependencies
-├── README.md                  # User documentation
-├── SETUP.md                   # Setup guide
-└── ARCHITECTURE.md            # This file
+├── backend/app/                  # FastAPI backend (Postgres + arq)
+│   ├── worker.py                 # arq worker: hourly discover_all cron + per-source tasks
+│   ├── database.py               # Postgres engine pool 10/10 + Alembic
+│   ├── discovery/circuit.py      # Circuit breaker (SET NX EX 60) + dead_letters
+│   └── observability/metrics.py  # Prometheus: queue depth, breaker, dead letters
+│
+├── .opencode/skills/resume-tailor/SKILL.md  # On-demand skill: tailor + verifier WARN@80
+├── config/boards.json            # Probed working ~100 ATS boards (cursor updated_at|posted_date)
+├── docker/docker-compose.yml     # Postgres 16 + Redis 7 + arq worker + FastAPI + Next.js
+├── tests/                        # 63+ tests
+├── profile/resume.json           # Master resume (canonical source)
+└── ARCHITECTURE.md               # This file
 ```
 
 ---
 
-## Pipeline Architecture (LangGraph)
+## Pipeline Architecture (Truncated: 3 Nodes)
 
-The pipeline is a linear 7-node StateGraph with checkpointing (MemorySaver):
+The pipeline is a truncated 3-node StateGraph with arq queue and Postgres persistence:
 
 ```
-discover → filter → analyze → tailor → cover_letter → email → apply
+discover → filter → save → (on-demand skill WARN@80)
 ```
+
+The previous flow (discover → filter → analyze → tailor → cover_letter → email → apply) is retired. Tailoring, cover letters, and outreach now run only through the on-demand opencode skill `resume-tailor` with verifier WARN at 70-79 and hard 422 after 30 JDs.
+
+### Discover (Tiered)
+
+Discovery fans out across tiers, each with cursor support and per-source handling. All fetch via httpx with tenacity `wait_exponential_jitter(multiplier=0.5, max=30)` and `Retry-After` clamp at 30s.
+
+| Tier | Sources | How it works | Cost/1k | API/Push |
+|------|---------|--------------|---------|----------|
+| **Tier0 ATS** | Greenhouse, Lever, Ashby, SmartRecruiters | Probed ~100 working boards from 200 candidates; cursor updated_at|posted_date fallback (updated_at preferred, posted_date if missing); concurrency 10, per-ATS rate limit (Greenhouse 1s, Lever 2s) | ₹0 | keyless JSON |
+| **Tier1** | Hirist gladiator + Unstop corrected + Internshala XHR fragment | Hirist POST `gladiator.hirist.tech/job/search` with `appId:hirist` header (free JSON, never jobseeker-api); Unstop corrected `api.unstop.com` search; Internshala XHR fragment parser | ₹0 | Hirist free JSON, Unstop free JSON |
+| **Tier3 free overflow** | Arbeitnow, Remotive, TheMuse (Jobicy optional) | Paginated 20/page, up to 5 pages per source; Arbeitnow free, Remotive free capped, TheMuse 500/hr anon; EU/US feeds — 90%+ filtered for Bangalore narrow | ₹0 | free APIs capped |
+| **Tier2** | JobSpy Naukri/Indeed | JobSpy with proxybroker2 rotation | ₹0 | free scrape |
+| **Tier3** | LinkedIn overflow via JobSpy | 999 breaker: first 999 opens breaker `SET NX EX 60`, writes dead_letters, skips; wreq-js fallback via `WREQ_SIDECAR_URL=http://wreq:3000` (optional Node JA3 sidecar) | ₹0 | breaker + wreq-js fallback |
+
+Cursor behavior: each ATS board tracks `cursor` as the last seen `updated_at` value, falling back to `posted_date` when `updated_at` is absent. Next discovery pass requests only jobs where `updated_at > cursor` or `posted_date > cursor`, so the probe stays incremental and avoids re-fetching unchanged listings.
+
+Cost: discovery ₹0/1k (all free tiers) + LLM ₹0-12/mo (skill only, on-demand — batch never calls LLM).
+
+### Filter (Hash Dedup)
+
+Filter runs deterministic dedup before save. No LLM in batch.
+
+| Field | Type | Role |
+|-------|------|------|
+| `canonical_id` | `VARCHAR(64) UNIQUE` | sha256(salt + lower(company+title+location+source_id)) — 64 hex, primary dedup key |
+| `jd_hash` | `VARCHAR(64)` primary | sha256(normalized JD text with volatile stripping) — detects content changes; jd_hash primary for change log |
+| `simhash` | `BIGINT` residual | 64-bit simhash of title+url; Hamming <=3 (SIMHASH_THRESHOLD) catches near-dups missed by exact hash |
+
+Flow: exact `canonical_id` match → skip as seen. If `jd_hash` differs for same `canonical_id` → mark `changed` (not `new`) and update `diff_change_log`. Residual `simhash` Hamming check catches near-duplicates with minor title rewrites. Volatile stripping removes dates, view counts, and hex tokens before hashing.
+
+### Save
+
+Save writes to Postgres (`job_listings` table) with `canonical_id 64 UNIQUE` and `jd_hash` index. ETag header stored when present, body hash fallback. Source badges and drift tracking (`new/changed/gone`) computed from hash diffs. On conflict, upsert keeps the newest `jd_hash` and updates `updated_at`.
+
+### On-Demand Skill (resume-tailor WARN@80)
+
+Tailoring is not part of the batch pipeline. The opencode skill at `.opencode/skills/resume-tailor/SKILL.md` runs only when the user invokes it from the dashboard or CLI.
+
+- LLM tailors resume for the selected JD
+- Verifier gate runs 6 deterministic checks (project names, skills, dates, metrics, education, cliches)
+- Score <80 → verifier WARN yellow for first 30 JDs (70-79 shows warning but allows save), hard 422 after 30 JDs if still below 80
+- DOCX renderer produces ATS-optimized output at 96.7% parse rate
+- Cache keyed by `jd_hash` so re-tailoring the same JD hits cache
 
 ### State (PipelineState)
 
@@ -87,15 +126,10 @@ class PipelineState(TypedDict):
     raw_jobs_count: int
     filtered_jobs_count: int
     current_job_index: int
-    current_job: Optional[dict]
-    master_resume: Optional[dict]
-    tailored_resume: Optional[dict]
-    verifier_report: Optional[dict]
-    cover_letter: Optional[str]
-    email_draft: Optional[str]
-    email_contacts: list[dict]
-    humanization_score: Optional[float]
-    application_results: list[dict]
+    seen_canonical_ids: set[str]  # Dedup set for this run
+    cursor: dict[str, str]    # Per-source cursor: updated_at|posted_date fallback
+    jd_hash: Optional[str]    # Current JD hash for change detection
+    canonical_id: Optional[str]  # Current canonical_id 64
     errors: Annotated[list[str], operator.add]
     warnings: Annotated[list[str], operator.add]
     run_id: Optional[str]
@@ -103,25 +137,57 @@ class PipelineState(TypedDict):
     stage: str
 ```
 
-### Node Details
-
-| Node | Component | What It Does | LLM Calls |
-|------|-----------|-------------|-----------|
-| **discover** | InternshalaScraper | Scrapes 3 pages per keyword+location, enriches with detail page JSON-LD | 0 |
-| **filter** | Post-filter logic | Dedup (DB + in-memory), paid check (≥₹5000), location (Remote/Bangalore), keyword match, recency sort (newest first) | 0 |
-| **analyze** | JDAnalyzer | Extracts required_skills, nice_to_have, top_keywords from JD using LLM | 1 per job |
-| **tailor** | ResumeTailor + ResumeVerifier | Rewrites summary, reorders skills, selects 3-4 projects, verifies against source (score < 60 → retry, max 2) | 1 per job (+ retries) |
-| **cover_letter** | CoverLetterGen | Two-pass: LLM draft → humanization (cliché strip, hedging removal, sentence variety) | 1 per job (up to 3 regens) |
-| **email** | EmailFinder + CoverLetterGen | Finds hiring manager emails via Hunter.io, generates cold email, saves to DB for approval | 1 per job |
-| **apply** | InternshalaSubmitter | CDP browser → navigate → fill → upload resume → submit → screenshot | 0 |
-
 ### Key Pipeline Behaviors
 
-- **Rate limiter**: Token-bucket (30 calls/min) shared across all LLM-calling nodes
-- **Dedup**: Only skips jobs that have been **applied to** (status = applied/submitted), NOT just jobs in DB
-- **Recency**: Parses relative dates ("3 days ago", "1 week ago") → sorts newest first
-- **Checkpointing**: LangGraph MemorySaver — survives crashes mid-pipeline
-- **Structured logging**: Every node logs timing, item count, error count
+- **arq queue**: hourly `discover_all` cron fans per-source tasks; queue depth gauge tracks fanout
+- **Circuit breaker**: Redis `SET NX EX 60` per source; 999 on LinkedIn opens breaker for 60s and skips
+- **Dead letters**: `dead_letters` table `(source, url) UNIQUE` buffers 429/5xx/999 for retry; `next_retry_at` scheduling
+- **Cursor**: `updated_at|posted_date` fallback per board — incremental fetch, never full rescan
+- **Hash dedup**: `canonical_id 64 UNIQUE` is the source of truth; `jd_hash primary` for change detection; `simhash` residual for fuzzy matches
+- **Verifier WARN**: score 70-79 yellow WARN for first 30 JDs, hard 422 after 30 if still <80
+- **Cost**: ₹0/1k discovery + ₹0-12/mo LLM (skill only)
+
+---
+
+## arq Queue + Dead Letter + Metrics
+
+### arq Worker
+
+`backend/app/worker.py` defines `WorkerSettings` with `cron(discover_all, hour={*range(24)}, minute=0)` — hourly fanout across all tiers. Per-source tasks (`discover_greenhouse`, `discover_hirist`, etc.) each wrap discovery with tenacity and circuit breaker. The worker runs as a Docker service (`internapply-worker`) backed by Redis 7.
+
+- Concurrency: semaphore 10 for ATS probing
+- Retry: `stop_after_attempt(3)`, `wait_exponential_jitter(multiplier=0.5, max=30)`, clamped `Retry-After` (never 3600 parks worker)
+- Skip list: 401/403/404/422 never retry; 429/502/503/504 retry with backoff
+
+### Dead Letter Table
+
+```sql
+CREATE TABLE dead_letters (
+    id SERIAL PRIMARY KEY,
+    source TEXT NOT NULL,
+    url TEXT NOT NULL,
+    status_code INT,
+    error TEXT,
+    next_retry_at TIMESTAMPTZ,
+    UNIQUE (source, url)
+);
+CREATE INDEX ix_dead_letters_next_retry_at ON dead_letters(next_retry_at);
+```
+
+Failed fetches that exhaust retries land in `dead_letters`. The hourly cron retries entries where `next_retry_at <= now()`. 999 from LinkedIn is treated as hostile and dead-lettered immediately with breaker open.
+
+### Metrics (Prometheus)
+
+Exposed via `backend/app/observability/metrics.py`:
+
+| Metric | Type | What it tracks |
+|--------|------|----------------|
+| `queue_depth` | Gauge | arq fanout depth (0 when idle, ~10 during discover) |
+| `circuit_breaker_open{source}` | Gauge | 1 if breaker open for that source |
+| `dead_letters_total{source}` | Counter | dead letter inserts per source |
+| `discover_latency_p50{source}` | Histogram | per-source fetch latency |
+
+Dashboard KPI `working_boards` shows count of boards with `latency_p50` and `has_updatedAt` probe metadata.
 
 ---
 
@@ -134,6 +200,22 @@ OPENCODE_GO_MODEL=deepseek-v4-flash # LLM model
 OPENCODE_GO_BASE_URL=https://opencode.ai/zen/go/v1
 ```
 
+### Infra (Docker)
+```
+DATABASE_URL=postgresql+asyncpg://internapply:changeme@postgres:5432/internapply # service name postgres not localhost
+REDIS_URL=redis://redis:6379/0
+HASH_SALT=internapply-v1
+SIMHASH_THRESHOLD=3
+VERIFIER_MIN_SCORE=80 # WARN yellow 70-79 for first 30 JDs, hard 422 after
+WREQ_SIDECAR_URL=http://wreq:3000 # optional Node wreq-js JA3 sidecar for LinkedIn 999 fallback
+VOLLNA_RSS_URL= # optional for Upwork webhook
+ARBEITNOW_ENABLED=true
+HIRIST_ENABLED=true
+UNSTOP_ENABLED=true
+REMOTIVE_ENABLED=true
+THEMUSE_ENABLED=true
+```
+
 ### Optional — Discovery
 ```
 SEARCH_KEYWORDS=["python","java","backend","software development","full stack"]
@@ -143,126 +225,108 @@ MIN_STIPEND_INR=5000
 
 ### Optional — Email Outreach
 ```
-HUNTER_API_KEY=...                 # Hunter.io (50 free searches/month)
+HUNTER_API_KEY=...                 # Hunter.io (50 free searches/month, X/50 counter, not in batch)
 GMAIL_SENDER_EMAIL=...             # Gmail address to send from
 GMAIL_CLIENT_SECRET_PATH=...       # Google Cloud OAuth client_secret.json
-```
-
-### Optional — Enrichment
-```
-NAUKRI_APIFY_TOKEN=...             # Currently dead actor — not used
 ```
 
 ---
 
 ## Data Models
 
-### JobListing
-Stores discovered jobs from Internshala. Key fields: title, company, location, stipend_min/max, stipend_raw, skills (JSON), analysis (JSON), description (from detail page enrichment), source, url, posted_at, posted_at_date (for recency sorting), is_paid, is_remote.
+### JobListing (Postgres `job_listings`)
+Stores discovered jobs. Key fields: title, company, location, stipend_min/max, stipend_raw, skills (JSONB), analysis (JSONB), description, source, url, posted_at, posted_at_date, cursor (updated_at|posted_date fallback), canonical_id `VARCHAR(64) UNIQUE`, jd_hash `VARCHAR(64)` primary index, simhash `BIGINT`, etag, drift (`new/changed/gone`), is_paid, is_remote. Postgres 16 is primary; `internapply/database.py` keeps SQLite only as CLI mirror/offline fallback.
 
 ### Application
-Tracks application state per job. Fields: job_id, status (discovered/applied/submitted/email_drafted/email_sent), tailored_resume_path, cover_letter_path, email_sent, email_sent_at, email_contacts (JSON), email_draft_path, portal_submitted, verifier_score, humanization_score.
+Tracks application state per job. Fields: job_id, status, tailored_resume_path, cover_letter_path, email_sent, verifier_score, humanization_score.
 
 ### Resume
-Master resume data. Fields: name, email, phone, location, summary, education (JSON), skills (JSON dict by category), projects (JSON), additional (JSON). Canonical source: `profile/resume.json`.
+Master resume data. Fields: name, email, phone, location, summary, education (JSONB), skills (JSONB dict by category), projects (JSONB), additional (JSONB). Canonical source: `profile/resume.json`.
 
-### EmailLookup
-Cache for Hunter.io domain lookups. Fields: domain (unique), emails (JSON), cached_at.
+### DeadLetter
+Buffers failed fetches. Fields: source, url (UNIQUE together), status_code, error, next_retry_at.
 
 ---
 
 ## CLI Commands
 
 ```bash
-internapply doctor               # System check (all API keys, files, DB)
+internapply doctor               # System check (all API keys, files, DB, working ~100 boards)
 internapply resume init [file]   # Parse JS generator → profile/resume.json
 internapply resume show          # Display current resume
-internapply resume add-skill "Cat: Skill"
-internapply resume add-project "Name" --description "B1;B2" --tech "Stack"
-internapply resume edit          # Open in $EDITOR
-internapply discover             # Find internships (--dry-run, --max-jobs)
-internapply run                  # Full pipeline (--dry-run, --max-jobs, --from-stage)
+internapply discover             # Find internships (--dry-run, --max-jobs, tiered)
+internapply run                  # Truncated pipeline: discover→filter→save (--dry-run)
 internapply status               # Dashboard of jobs/applications/emails
-internapply email setup          # Gmail OAuth authentication
-internapply email list           # Show pending email approvals
-internapply email send --all --approve  # Actually send emails
-internapply email export-token --raw    # Export Gmail token for CI
+# Tailoring is via skill, not CLI batch:
+# .opencode/skills/resume-tailor/SKILL.md — on-demand, verifier WARN@80, DOCX 96.7%
 ```
 
 ---
 
-## Tests (63 tests)
+## Tests (63+ tests)
 
 | Test File | Tests | What It Verifies |
 |-----------|-------|-----------------|
-| test_verifier.py | 12 | Clean resume passes (100), FakeProject detected, date normalization, education mismatch, metrics, clichés |
+| test_verifier.py | 12 | Clean resume passes (100), FakeProject detected, date normalization, education mismatch, metrics, cliches; WARN@80 |
 | test_scorer.py | 6 | Deterministic scoring, keyword match, format scoring, title match |
-| test_pipeline.py | 10 | State initialization, graph topology (7 nodes), error accumulation |
-| test_database.py | 8 | Migration V1+V2, schema version, idempotent init |
-| test_models.py | 6 | JobListing, Application, Resume creation + serialization |
-| test_internshala.py | 5 | Stipend parsing (range, unpaid, single), URL building |
-| test_config.py | 6 | Defaults, env overrides, list parsing, immutability |
-| test_naukri.py | 2 | Salary parsing (LPA→monthly) |
-| test_internshala_scraper.py | 5 | Stipend parsing edge cases |
+| test_pipeline.py | 10 | State initialization, graph topology (3 nodes), error accumulation, truncated flow |
+| test_database.py | 8 | Migration V3, canonical_id 64 UNIQUE, jd_hash index, dead_letters unique(source,url) |
+| test_probe.py | 5 | Probe gate working >=100, dead threshold, 429 backoff, hirist gladiator ok |
+| test_queue.py | 5 | arq cron hourly, dead letter on 999, Retry-After clamp 30 |
+| test_config.py | 6 | Defaults, env overrides, list parsing, lazy boards property |
+| test_hash_utils.py | 6 | canonical_id 64, jd_hash primary, simhash residual, volatile stripping |
 
 ---
 
 ## External Dependencies / API Keys
 
-| Service | Cost | Usage | Key In .env |
-|---------|------|-------|-------------|
-| **OpenCode Go** | Included with subscription | All LLM calls (JD analysis, tailoring, cover letters) | `OPENCODE_GO_API_KEY` |
-| **Hunter.io** | Free tier (50/mo) | Find hiring manager emails from company domains | `HUNTER_API_KEY` |
-| **Gmail API** | Free | Send cold emails with Gmail.send scope only | `GMAIL_*` |
-| **GitHub API** | Free | Fetch profile data (public repos, languages) | No key needed |
-| **Internshala** | Free | Job listings + application submission | No key needed |
-| **Naukri** | Free via Apify (dead) | No longer working | `NAUKRI_APIFY_TOKEN` (dead) |
+| Service | Cost | Usage | Cost/1k | API/Push | Key In .env |
+|---------|------|-------|---------|----------|-------------|
+| **Postgres 16** | Free (Docker) | Primary datastore, canonical_id 64 UNIQUE, dead_letters | ₹0 | local | `DATABASE_URL` |
+| **Redis 7 + arq** | Free (Docker) | Job queue, circuit breaker, dead letter scheduling | ₹0 | local | `REDIS_URL` |
+| **ATS Boards** | Free | Tier0 probed ~100 boards, keyless JSON, cursor updated_at | ₹0 | keyless JSON | — |
+| **Hirist gladiator** | Free | `POST gladiator.hirist.tech/job/search` with appId header | ₹0 | free JSON | `HIRIST_ENABLED` |
+| **Unstop** | Free | Corrected search API | ₹0 | free JSON | `UNSTOP_ENABLED` |
+| **Arbeitnow** | Free | Tier3 free overflow, paginated 20/page | ₹0 | free capped | `ARBEITNOW_ENABLED` |
+| **Remotive** | Free | Tier3 free overflow | ₹0 | free capped | `REMOTIVE_ENABLED` |
+| **TheMuse** | Free | Tier3 500/hr anon | ₹0 | free capped 500/hr | `THEMUSE_ENABLED` |
+| **OpenCode Go** | ₹0-12/mo | Skill only (on-demand tailor), never in batch | ₹0-12/mo | skill | `OPENCODE_GO_API_KEY` |
+| **Hunter.io** | Free tier (50/mo) | Email finder, X/50 counter, not in batch | ₹0 | free capped | `HUNTER_API_KEY` |
+| **Gmail API** | Free | Send cold emails, encrypted tokens, --approve gate | ₹0 | — | `GMAIL_*` |
 
 ---
 
 ## How Each Component Works
 
-### LLM Client (llm.py)
-Wrapper around OpenAI-compatible OpenCode Go API. Supports sync + async calls. Retry with exponential backoff (3 retries, 2s base + jitter). Default max_tokens=16384 (increased for deepseek thinking model which uses ~1000+ reasoning tokens per call).
+### ATS Discovery (discovery/ats/)
+Probes 200 candidates (Greenhouse/Lever/Ashby/SmartRecruiters) with `httpx.AsyncClient(timeout=10, limits=Limits(max_connections=20))`, semaphore 10, per-ATS rate limits. Cursor tracks `updated_at` with `posted_date` fallback for incremental fetch. Boards with `working` status and `has_updatedAt` flag are kept in `config/boards.json` (working ~100, dead 109, p50 ~327ms).
 
-### Internshala Scraper (discovery/internshala.py)
-HTTP GET + BeautifulSoup — no Playwright needed for listings. Scrapes 3 paginated pages per keyword+location. After filters pass, fetches **detail page** for each job to extract JSON-LD `JobPosting` data (description, company, stipend, skills). Returns 46+ cards per keyword.
+### Hirist Gladiator (discovery/hirist.py)
+`POST https://gladiator.hirist.tech/job/search` with headers `appId:hirist, Referer:https://hirist.tech`. Never `jobseeker-api.hirist.com`. Body `{query, location}`. Returns jobs array with JD and stipend. Free JSON, no key.
 
-Filters applied: stipend ≥ ₹5000, location (Remote/Bangalore), keyword match (title contains significant word from search terms).
+### Unstop (discovery/unstop.py)
+Corrected `api.unstop.com` search endpoint (not `/search_internships`). Paginated, respects filter params.
 
-### Resume Tailor (resume/tailor.py)
-Takes master resume JSON + JD analysis → LLM prompt with 8 strict rules (no fabrication, student context, reorder only). Output: summary, skills_reordered, projects (selected 3-4 best), education. Verifier gate retries up to 2 times if score < 60.
+### Internshala XHR Fragment (discovery/internshala_xhr.py)
+Parses XHR JSON fragments rather than full HTML. Lightweight, no Playwright in discovery.
 
-**CRITICAL**: Prompts explicitly state "B.Tech student with hobby/open-source projects — NOT professional experience."
+### Free Overflow (discovery/free_apis.py)
+Tier3 paginated 20/page, up to 5 pages per source. Arbeitnow free, Remotive free capped, TheMuse 500/hr anon. EU/US remote feeds — 90%+ filtered for Bangalore narrow. Each source respects `*_ENABLED` flag and `Retry-After` clamp.
+
+### JobSpy LinkedIn Overflow (discovery/jobspy_linkedin.py)
+JobSpy for Naukri/Indeed (Tier2) + LinkedIn overflow (Tier3). 999 response triggers breaker `SET NX EX 60`, dead_letter insert, and optional wreq-js fallback via `WREQ_SIDECAR_URL`. Never auto-submits to LinkedIn — external link only.
+
+### Hash Dedup (discovery/hash_utils.py)
+Stdlib `hashlib.sha256` only. `canonical_id` 64 hex of salt+lower(company+title+location+source_id). `jd_hash` primary of normalized JD (volatile stripping for dates/views/hex tokens, percent synonym unification). `simhash64` residual with Hamming <=3 (threshold 3) for fuzzy near-dups.
+
+### Resume Tailor Skill (resume/tailor.py + .opencode/skills/resume-tailor/)
+LLM prompt with 8 strict rules (no fabrication, student context, reorder only). Verifier gate retries up to 2 times if verifier WARN below 80. First 30 JDs show yellow WARN at 70-79; hard 422 after 30 if still <80. DOCX 96.7% ATS parse rate.
 
 ### Verifier Gate (resume/verifier.py)
-Fully deterministic — NO LLM calls. 6 checks:
-1. Project names exist in source
-2. Skills exist in source (case-insensitive substring)
-3. Dates normalized to YYYY-MM → match exists
-4. Numeric metrics (40%, $2M, 1000+) exist in source
-5. Education: degree, institution, gpa each match source
-6. AI clichés flagged as warnings (18 patterns)
+Fully deterministic — NO LLM calls. 6 checks: project names, skills, dates, metrics, education, cliches. Score = max(0, 100 - violations×20). Verifier WARN at 70-79, hard fail at <70 or after 30 JDs <80.
 
-Score = max(0, 100 - violations×20). Score ≥ 60 = pass.
-
-### Cover Letter + Humanization (resume/cover_letter.py)
-Two-pass: LLM draft (temp=0.7) → humanization pass. Humanization removes: clichés, robotic patterns ("I would like to request" → "Could we"), hedging ("just", "maybe", "perhaps"). Score: 5 criteria × 20pts each (no clichés, varied sentence starters, no hedging, natural phrasing, word count 80-120). Regenerates if score < 80 (max 3 attempts).
-
-### Resume Renderer (resume/renderer.py)
-Generates professional ATS-optimized DOCX using python-docx. Single-column, Arial 9.5pt, 0.55" margins. Shows: top 10 skills only, max 4 projects with 2 bullets each, 1 page enforced. No tables, no graphics, no columns.
-
-### Gmail Sender (outreach/sender.py)
-OAuth2 with `gmail.send` scope only. Token encrypted at rest via cryptography.fernet. Supports file attachments via MIME multipart. Rate limited to 20/day. Clenup: strips stray "Subject:" lines from body, normalizes line breaks.
-
-### Email Finder (outreach/email_finder.py)
-Skips known job board domains (internshala.com, linkedin.com, etc.) — uses company name instead. Drops legal suffixes (Private Limited → domain). Caches results in DB. Filters by position keywords (recruiter, hiring, talent, hr, manager, head, director, vp, chief). Sorts by seniority, returns top 3.
-
-### CDP Browser (apply/browser.py)
-Probes ports 9222-9242 for existing Chrome, or accepts configured CDP_URL. Launches with random port, bound to 127.0.0.1 only (security). Falls back to headless Playwright if no Chrome found.
-
-### Internshala Auto-Apply (apply/internshala.py)
-Requires logged-in Chrome via CDP. Steps: navigate → click Apply Now (12+ selectors) → fill cover letter → upload resume PDF → detect screening questions (skip) → submit → screenshot. Max 5/session, 3-5min delays, 15/day limit.
+### arq Worker (backend/app/worker.py)
+Hourly `discover_all` cron via `arq.cron(hour={*range(24)}, minute=0)`. Per-source tenacity, circuit breaker, dead letters. Prometheus metrics for queue depth, breaker state, dead letters.
 
 ---
 
@@ -270,53 +334,50 @@ Requires logged-in Chrome via CDP. Steps: navigate → click Apply Now (12+ sele
 
 | Decision | Research | Implementation |
 |----------|----------|---------------|
-| **No LinkedIn auto-apply** | H1 falsified — LSTM detection, 48-signal fingerprinting, permanent bans | LinkedIn discovery only (guest endpoint) |
-| **LLM + verifier gate** (not templates) | H3 falsified — +41% ATS score with LLM; 2.48-5.36 hallucinated items/resume | LLM generates → deterministic verifier checks every claim |
-| **Internshala primary target** | H2 survived — HTTP-only scraping works, weak bot detection | HTTP for listings, Playwright only for submission |
-| **Post-hoc stipend filtering** | H5 survived — platform filters are "advisory" | Parse raw text → INR numeric → re-filter |
-| **LangGraph orchestration** | H4 provisionally falsified — 99.7% reliability | StateGraph with MemorySaver checkpointing |
-| **DOCX > PDF for ATS** | Workday/Greenhouse/Lever parse DOCX at 96-100% vs PDF 92-98% | python-docx generator |
-| **No resume in first email** | Cold emails with attachments get lower response | Offer to share, attach only after reply — **EXCEPT for internships** where attached is standard |
-| **Email approval gate** | Prevent accidental sends | `--approve` flag required |
-| **Encrypted Gmail token** | Security | cryptography.fernet + machine-specific seed |
-| **Relative date parsing** | Internshala uses "3 days ago", "Few hours ago", "1 month ago" | Regex patterns → datetime.date → sort newest-first |
+| **Truncated 3-node pipeline** | Batch should never call LLM; skill is on-demand | discover→filter→save, skill WARN@80 |
+| **Tiered discovery** | No single source covers all roles | Tier0 ATS ~100 + Tier1 Hirist/Unstop/Internshala + Tier2 JobSpy + Tier3 free overflow |
+| **Hash 64 not 128** | sha256 64 hex is sufficient, 128 is waste | canonical_id VARCHAR(64) UNIQUE, jd_hash primary 64 |
+| **Cursor updated_at\|posted_date fallback** | ATS boards expose updated_at inconsistently | Prefer updated_at, fallback to posted_date |
+| **Postgres 16 + arq** | SQLite plus legacy queue was stale; need queue plus dead letters | Postgres 16 + Redis 7 + arq |
+| **No LinkedIn auto-apply** | LSTM detection, permanent bans | LinkedIn discovery only, external link |
+| **LLM + verifier WARN@80** | Falsified templates; verifier catches hallucination | LLM generates → verifier WARN 70-79, hard 422 after 30 |
+| **Cost ₹0/1k + ₹0-12/mo** | All discovery free, LLM only on skill | No LLM in batch, skill cache by jd_hash |
 
 ---
 
-## GitHub Actions CI/CD
+## Docker Compose
 
-**Daily workflow** (`.github/workflows/daily-run.yml`):
-- Schedule: daily at 03:17 UTC (08:47 IST)
-- Timeout: 30 min
-- Downloads SQLite DB artifact from last run → runs discovery + analysis → uploads updated DB
-- Skips auto-apply in CI (needs logged-in Chrome)
-- Creates GitHub Issue on failure
+Postgres 16 is primary; `internapply/database.py` keeps SQLite only as CLI mirror/offline fallback.
 
-**Secrets required**:
-- `OPENCODE_GO_API_KEY`, `HUNTER_API_KEY`, `GMAIL_SENDER_EMAIL`, `GMAIL_CLIENT_SECRET_PATH`, `NAUKRI_APIFY_TOKEN`
-- `GMAIL_TOKEN_JSON` (generated via `internapply email export-token --raw`)
-- `INTERNSHALA_SESSION_JSON` (optional, for auto-apply)
+```
+postgres:16-alpine  — pgdata volume, healthcheck pg_isready
+redis:7-alpine      — queue + breaker state
+api                 — FastAPI (DATABASE_URL=postgresql+asyncpg://internapply:***@postgres:5432/internapply)
+worker              — arq worker (same image, python -m backend.app.worker)
+proxybroker         — free proxy rotation for JobSpy
+ui                  — Next.js frontend
+```
+
+`DATABASE_URL` uses service name `postgres` not `localhost` — required for Docker networking.
 
 ---
 
 ## Known Issues / Tech Debt
 
-1. **Naukri scraper** — Apify actor `droidmaster/naukri-jobs-feed` is dead (404). HTTP scraping impossible (Next.js SPA + Akamai). Remove from pipeline.
-2. **Internshala card parsing** — HTML structure changes frequently. Current text-based parsing is resilient but imperfect. Some titles/companies still mis-parsed.
-3. **Empty descriptions** — If detail page enrichment fails (timeout/network), job gets skipped during analysis. No retry mechanism.
-4. **LLM token cost** — Deepseek uses thinking tokens (1000+ per call). Each pipeline run makes ~15 LLM calls = ~15K-30K thinking tokens + output.
-5. **Resume CGPA** — Needs manual update in profile/resume.json via `internapply resume edit`.
-6. **GMAIL_TOKEN_JSON not in CI** — Needs manual export + secret setup.
-7. **All 5 API keys checked by doctor** — System check command shows green/red for each.
+1. **LinkedIn 999** — Hostile 999 response opens breaker 60s; wreq-js sidecar is optional fallback for JA3 fingerprint.
+2. **Free overflow noise** — Tier3 EU/US feeds 90%+ filtered for Bangalore narrow; kept for overflow only.
+3. **LLM token cost** — Skill only, cached by jd_hash; batch never calls LLM. ₹0-12/mo.
+4. **Resume CGPA** — Needs manual update in profile/resume.json via `internapply resume edit`.
+5. **All API keys checked by doctor** — System check shows green/red for each, plus working_boards KPI.
 
 ---
 
 ## How to Extend
 
 ### Add a new job source
-1. Create `internapply/discovery/newsource.py` with async `search(keywords, locations) → list[JobListing]`
-2. Add to `pipeline/nodes.py` `discover_jobs` node (follow Internshala pattern)
-3. Add to CLI `discover` command if needed
+1. Create `backend/app/discovery/newsource.py` with async `search() → list[dict]`
+2. Add to `backend/app/worker.py` `discover_all` fanout
+3. Add `*_ENABLED` flag in `config.py` and `.env.example`
 
 ### Add a new resume section
 1. Update `profile/resume.json` with new fields
@@ -324,6 +385,6 @@ Requires logged-in Chrome via CDP. Steps: navigate → click Apply Now (12+ sele
 3. The verifier will automatically check any new fields
 
 ### Modify the LLM prompt
-- JD analyzer prompt: `internapply/resume/analyzer.py` `_BUILD_LLM_PROMPT()`
-- Resume tailor prompt: `internapply/resume/tailor.py` (embedded in `tailor()` method)
-- Cover letter prompt: `internapply/resume/cover_letter.py` `_build_draft_prompt()`
+- JD analyzer prompt: `internapply/resume/analyzer.py`
+- Resume tailor prompt: `internapply/resume/tailor.py` + `.opencode/skills/resume-tailor/SKILL.md`
+- Cover letter prompt: `internapply/resume/cover_letter.py`
