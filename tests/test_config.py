@@ -38,7 +38,7 @@ class TestConfig:
             "backend engineer intern",
         ]
         assert cfg.SEARCH_LOCATIONS == ["Remote", "Bangalore"]
-        assert cfg.OPENCODE_GO_MODEL == "opencode-go/deepseek-v4-flash"
+        assert cfg.OPENCODE_GO_MODEL == "deepseek-v4-flash"
         assert cfg.OPENCODE_GO_BASE_URL == "https://opencode.ai/zen/go/v1"
 
     def test_config_defaults_optional_empty(self, monkeypatch):
@@ -95,3 +95,39 @@ class TestConfig:
 
         with pytest.raises((TypeError, ValidationError)):
             cfg.MIN_STIPEND_INR = 9999  # type: ignore[misc]
+
+    def test_lazy_boards_no_crash(self, monkeypatch, tmp_path):
+        """ats_boards returns [] when config/boards.json missing — no FileNotFoundError."""
+        for key in Config.model_fields:
+            monkeypatch.delenv(key, raising=False)
+        monkeypatch.chdir(tmp_path)
+        cfg = Config()
+        assert cfg.ats_boards == []
+
+    def test_new_defaults(self, monkeypatch):
+        """New hash/board fields have correct defaults."""
+        for key in Config.model_fields:
+            monkeypatch.delenv(key, raising=False)
+        cfg = Config()
+        assert cfg.HASH_SALT == "internapply-v1"
+        assert cfg.SIMHASH_THRESHOLD == 3
+        assert cfg.VERIFIER_MIN_SCORE == 80
+        assert cfg.HIRIST_ENABLED is True
+        assert cfg.UNSTOP_ENABLED is True
+        assert cfg.ARBEITNOW_ENABLED is True
+        assert cfg.WREQ_SIDECAR_URL == ""
+        assert cfg.VOLLNA_RSS_URL == ""
+
+    def test_boards_validator_warn(self, monkeypatch, tmp_path):
+        """Boards with working <50 warns not crash."""
+        import json
+
+        for key in Config.model_fields:
+            monkeypatch.delenv(key, raising=False)
+        (tmp_path / "config").mkdir()
+        (tmp_path / "config" / "boards.json").write_text(json.dumps({"working": [{"slug": "a"}]}))
+        monkeypatch.chdir(tmp_path)
+        cfg = Config()
+        boards = cfg.ats_boards
+        assert len(boards) == 1
+        assert len(boards) < 50

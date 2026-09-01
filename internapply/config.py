@@ -67,7 +67,7 @@ class Config(BaseSettings):
 
     # ── Optional — LLM ───────────────────────────────────────────────
     OPENCODE_GO_MODEL: str = Field(
-        default="opencode-go/deepseek-v4-flash",
+        default="deepseek-v4-flash",
         description="Model identifier for OpenCode Go LLM",
     )
     OPENCODE_GO_BASE_URL: str = Field(
@@ -98,6 +98,41 @@ class Config(BaseSettings):
     LOG_LEVEL: str = Field(default="INFO", description="Logging level (DEBUG, INFO, WARNING, ERROR)")
     NAUKRI_APIFY_TOKEN: str = Field(default="", description="Apify token for enriched Naukri data")
 
+    # ── Discovery — Hash/Dedup & Boards ───────────────────────────────
+    HASH_SALT: str = Field(default="internapply-v1", description="Salt for canonical_id/jd_hash")
+    SIMHASH_THRESHOLD: int = Field(default=3, ge=1, le=10, description="Hamming distance threshold for simhash")
+    VERIFIER_MIN_SCORE: int = Field(default=80, ge=0, le=100, description="Minimum verifier score")
+    HIRIST_ENABLED: bool = True
+    UNSTOP_ENABLED: bool = True
+    ARBEITNOW_ENABLED: bool = True
+    REMOTIVE_ENABLED: bool = True
+    THEMUSE_ENABLED: bool = True
+    JOBICY_ENABLED: bool = True
+    WREQ_SIDECAR_URL: str = Field(default="", description="Optional wreq-js sidecar URL for LinkedIn fallback")
+    VOLLNA_RSS_URL: str = Field(default="", description="Optional Vollna RSS URL for Upwork webhook")
+
+    @property
+    def ats_boards(self) -> list[dict]:
+        """Lazy load working boards from config/boards.json — never at import.
+
+        Returns [] if file missing or malformed, warns (not crashes) if
+        working count < 50. Respects frozen=True (no Field default_factory).
+        """
+        import json
+
+        p = Path("config/boards.json")
+        if not p.exists():
+            return []
+        try:
+            data = json.loads(p.read_text())
+            boards = data.get("working", [])
+            if len(boards) < 50:
+                logger.warning("boards.json working {} <50, check probe", len(boards))
+            return boards
+        except Exception as e:
+            logger.warning("failed to load boards.json: {}", e)
+            return []
+
     # ── Pydantic-settings config ─────────────────────────────────────
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_file=".env",
@@ -110,6 +145,12 @@ class Config(BaseSettings):
         """Log a summary of the loaded configuration (with masked secrets)."""
         _ensure_env_loaded()
         _log_config(self)
+        try:
+            boards = self.ats_boards
+            src = "config/boards.json" if Path("config/boards.json").exists() else "empty (no file)"
+            logger.info("  BOARD_SOURCE {} count={}", src, len(boards))
+        except Exception as e:
+            logger.warning("BOARD_SOURCE check failed: {}", e)
 
 
 # ── Singleton holder ──────────────────────────────────────────────────
