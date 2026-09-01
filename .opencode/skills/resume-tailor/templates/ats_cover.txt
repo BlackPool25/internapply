@@ -1,0 +1,1 @@
+ATS cover: single-column, standard headings (Summary, Education, Projects, Skills), no tables/graphics, bullet lists via w:numPr, Arial 9.5pt, margins 0.55in. Block w:tbl, w:cols>1, w:textDirection.

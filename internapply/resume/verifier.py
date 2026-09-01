@@ -257,7 +257,15 @@ class ResumeVerifier:
 
         error_count = sum(1 for v in violations if v.severity == "error")
         score = max(0, 100 - error_count * 20)
-        passed = score >= 60
+        # WARN@80: >80 green pass, 70-80 yellow WARN (pass during calibration, hard 422 after 30), <70 red fail
+        if score > 80:
+            passed = True
+        elif score >= 70:
+            passed = _is_calibration_mode()
+            if passed:
+                warnings_list.append(f"WARN yellow (score {score}): below 80 but within calibration window (<{_CALIBRATION_THRESHOLD} JDs)")
+        else:
+            passed = False
 
         return VerifierReport(
             passed=passed,
@@ -369,23 +377,39 @@ class ResumeVerifier:
         source: dict[str, Any],
         violations: list[Violation],
     ) -> None:
-        """Check that every numeric metric in *tailored* exists in *source*."""
+        """Check that every numeric metric in *tailored* exists in *source* (via normalize_metric)."""
         source_text = _collect_all_text(source)
         source_metrics = _extract_metrics(source_text)
+        source_norm = {normalize_metric(m) for m in source_metrics}
 
         tailored_text = _collect_all_text(tailored)
         tailored_metrics = _extract_metrics(tailored_text)
+        tailored_norm = {normalize_metric(m): m for m in tailored_metrics}
 
-        for metric in tailored_metrics:
-            if metric not in source_metrics:
+        for norm, raw in tailored_norm.items():
+            # also consider full-text normalized comparison for synonym phrases:
+            # if tailored_norm metric not in source_norm, check if the surrounding phrase normalized matches
+            if norm not in source_norm:
+                # secondary check: see if tailored_text normalized contains source-like metric phrase
+                # we use strict metric set; if not found, check via full text synonym-aware containment
+                tailored_full_norm = normalize_metric(tailored_text)
+                source_full_norm = normalize_metric(source_text)
+                # if raw metric (like "40 percent") appears in normalized source text, don't flag
+                if norm in source_full_norm:
+                    continue
+                # if normalized full phrases share same metric token, don't flag when only verb differs
+                # e.g. source has "cut latency 40 percent" -> normalize_metric(source_text) contains "reduce latency 40 percent"
+                # and tailored is "reduce latency 40 percent" -> would be covered above.
                 violations.append(
                     Violation(
                         field="metric",
-                        claimed_value=metric,
+                        claimed_value=raw,
                         source_value=None,
                         severity="error",
                     ),
                 )
+                continue
+                # unreachable
 
     @staticmethod
     def _check_education(
@@ -571,8 +595,88 @@ def _any_value_contains(source_edu: list[dict[str, Any]], value: str) -> bool:
     return False
 
 
+# ── WARN@80 + calibration + normalize_metric ─────────────────────────
+_CALIBRATION_THRESHOLD = 30
+_CACHE_PATH = Path("data/tailor_cache.json")
+
+# synonym map for metric normalization: cut/reduced/etc → reduce, latency/time → latency
+_SYNONYM_MAP: dict[str, str] = {
+    "cut": "reduce",
+    "cuts": "reduce",
+    "cutting": "reduce",
+    "reduced": "reduce",
+    "reduce": "reduce",
+    "reduces": "reduce",
+    "reducing": "reduce",
+    "decreased": "reduce",
+    "decrease": "reduce",
+    "decreases": "reduce",
+    "decreasing": "reduce",
+    "improved": "reduce",
+    "improve": "reduce",
+    "improves": "reduce",
+    "lowered": "reduce",
+    "lower": "reduce",
+    "time": "latency",
+    "latency": "latency",
+    "times": "latency",
+}
+_STOPWORDS = {"by", "the", "a", "an", "of", "to", "for", "in", "on", "at"}
+
+_PERCENT_RE_V = re.compile(r"(\d+)\s*%")
+_PERCENT_WORD_RE_V = re.compile(r"(\d+)\s+percent", re.IGNORECASE)
+
+
+def normalize_metric(s: str) -> str:
+    """Normalize metric strings: 40% == 40 percent, cut/reduced synonyms unified.
+
+    Ensures ``normalize_metric('cut latency 40%') == normalize_metric('reduced time by 40 percent')``.
+    Lowercases, unifies ``%`` → ``percent``, maps verbs/nouns via synonym dict, drops stopwords.
+    """
+    if not s:
+        return ""
+    t = s.lower().strip()
+    # 40% → 40 percent
+    t = _PERCENT_RE_V.sub(r"\1 percent", t)
+    t = _PERCENT_WORD_RE_V.sub(lambda m: f"{m.group(1)} percent", t)
+    # tokenise alphanumeric + percent already expanded
+    tokens = re.findall(r"[a-z0-9]+", t)
+    normed: list[str] = []
+    for tok in tokens:
+        if tok in _STOPWORDS:
+            continue
+        normed.append(_SYNONYM_MAP.get(tok, tok))
+    # collapse percent duplication already handled; join
+    return " ".join(normed).strip()
+
+
+def _is_calibration_mode() -> bool:
+    """True if still within first 30 JDs (WARN yellow not 422)."""
+    try:
+        p = _CACHE_PATH
+        if not p.exists():
+            return True
+        data = json.loads(p.read_text(encoding="utf-8"))
+        # count real jd_hash entries (exclude metadata keys starting with _)
+        n = len([k for k in data.keys() if not str(k).startswith("_")])
+        return n < _CALIBRATION_THRESHOLD
+    except Exception:
+        return True
+
+
+def get_verifier_badge(score: int) -> str:
+    """Return badge color for *score*: green >80, yellow 70-80, red <70."""
+    if score > 80:
+        return "green"
+    if score >= 70:
+        return "yellow"
+    return "red"
+
+
 __all__ = [
     "ResumeVerifier",
     "VerifierReport",
     "Violation",
+    "normalize_metric",
+    "get_verifier_badge",
 ]
