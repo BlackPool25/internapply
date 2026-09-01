@@ -1,0 +1,50 @@
+# =============================================================================
+# InternApply — Docker Compose Dev Overrides
+# =============================================================================
+# This file is auto-merged by Docker Compose when running without explicit -f.
+# It overrides production settings with development-friendly ones:
+#   - Volume mounts for live code reload
+#   - Hot-reload servers (uvicorn --reload, next dev)
+#   - Environment variables for Docker file watching
+# =============================================================================
+#
+# Usage:
+#   Development: docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml up
+#   Or from docker/ dir: docker compose up   (auto-merges both files)
+#
+#   Production:  docker compose -f docker/docker-compose.yml up
+
+name: internapply
+
+services:
+  # ---------------------------------------------------------------------------
+  # API — dev overrides
+  # ---------------------------------------------------------------------------
+  api:
+    volumes:
+      # Mount backend source for live reload — changes reflect without rebuild
+      - ../backend:/app/backend
+    command:
+      [
+        "uvicorn",
+        "backend.app.main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--reload",
+      ]
+
+  # ---------------------------------------------------------------------------
+  # Frontend — dev overrides
+  # ---------------------------------------------------------------------------
+  ui:
+    volumes:
+      # Mount frontend source for live reload
+      - ../frontend:/app
+      # Preserve container-installed node_modules (anonymous volume)
+      - /app/node_modules
+    environment:
+      # Enable file polling so changes in bind-mounted dirs are detected
+      - WATCHPACK_POLLING=true
+    command: ["bun", "run", "dev"]

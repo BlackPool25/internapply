@@ -1,0 +1,9 @@
+FROM python:3.12-slim
+
+RUN pip install --no-cache-dir proxybroker2
+
+COPY proxybroker_entry.py /docker/proxybroker_entry.py
+
+EXPOSE 8888
+
+CMD ["python", "/docker/proxybroker_entry.py"]

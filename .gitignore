@@ -35,3 +35,28 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Build artifacts (ponytail: keep repo clean)
+.next/
+.serena/
+logs/
+uv.lock
+*.log
+frontend/node_modules/
+frontend/.next/
+frontend/package-lock.json
+
+# Untracked scaffolding (not in nuke-rebuild plan, keep local only)
+.dockerignore
+frontend/.dockerignore
+frontend/.gitignore
+frontend/CLAUDE.md
+frontend/AGENTS.md
+frontend/README.md
+setup.sh
+assets/.gitkeep
+docker/.env.example
+frontend/app/favicon.ico
+frontend/public/
+tests/backend/
+tests/e2e/
