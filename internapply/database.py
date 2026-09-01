@@ -1,7 +1,11 @@
 """Async SQLAlchemy engine, session factory, and migration system for InternApply.
 
-Uses SQLAlchemy 2.0 async with aiosqlite. Migration system uses a schema_version
-table to track applied versions — migrations are Python functions run sequentially.
+Uses SQLAlchemy 2.0 async with aiosqlite (CLI mirror).
+
+NOTE: Postgres 16 is the primary store (backend/app/database.py + Alembic).
+This SQLite module is kept only as a lightweight CLI mirror / offline fallback.
+It mirrors the Postgres hash fields (canonical_id 64 hex, jd_hash, etc.) so
+local runs can exercise the same dedup logic without a PG server.
 """
 
 import json
@@ -91,7 +95,19 @@ class ORMJobListing(Base):
     posted_at_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     is_paid: Mapped[bool] = mapped_column(Boolean, default=False)
     is_remote: Mapped[bool] = mapped_column(Boolean, default=False)
+    # hash/dedup mirror of Postgres (64 hex, not 128)
+    canonical_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    jd_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    simhash: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    etag: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    change_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_ats: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    @property
+    def cursor_value(self) -> datetime | date | None:
+        return self.created_at or self.last_seen_at or self.posted_at_date  # type: ignore[return-value]
 
 
 class ORMApplication(Base):
@@ -141,6 +157,23 @@ class ORMEmailLookup(Base):
     cached_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
+class ORMDeadLetter(Base):
+    __tablename__ = "dead_letters"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String(32))
+    url: Mapped[str] = mapped_column(String(2048))
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+    __table_args__ = (
+        # UniqueConstraint mirrored; SQLite respects via index
+    )
+
+
 # ---------------------------------------------------------------------------
 # Migration definitions
 # ---------------------------------------------------------------------------
@@ -188,9 +221,42 @@ def _migrate_v2_column_exists(sync_conn: Any) -> bool:
     return any(row[1] == "posted_at_date" for row in rows)
 
 
+def _has_column(sync_conn: Any, table: str, col: str) -> bool:
+    rows = sync_conn.execute(text(f"PRAGMA table_info({table})")).fetchall()
+    return any(r[1] == col for r in rows)
+
+
+async def _migrate_v3() -> None:
+    """V3: hash/dedup mirror (canonical_id 64, jd_hash, simhash, etc.) + dead_letters (Postgres primary; SQLite mirror)."""
+    async with _engine.begin() as conn:
+        # job_listings hash columns
+        for col_def in [
+            ("canonical_id", "VARCHAR(64)"),
+            ("jd_hash", "VARCHAR(64)"),
+            ("simhash", "BIGINT"),
+            ("etag", "VARCHAR(255)"),
+            ("change_log", "TEXT"),
+            ("source_ats", "VARCHAR(32)"),
+            ("last_seen_at", "DATETIME"),
+        ]:
+            col, typ = col_def
+            exists = await conn.run_sync(lambda sc, t=col: _has_column(sc, "job_listings", t))
+            if not exists:
+                await conn.run_sync(lambda sc, c=col, t=typ: sc.execute(text(f"ALTER TABLE job_listings ADD COLUMN {c} {t}")))
+        # dead_letters table via create_all
+        await conn.run_sync(lambda sc: Base.metadata.create_all(sc, tables=[ORMDeadLetter.__table__], checkfirst=True))
+        # unique index on (source,url) if not exists — SQLite workaround
+        try:
+            await conn.run_sync(lambda sc: sc.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_dead_letters_source_url ON dead_letters(source, url)")))
+        except Exception:
+            pass
+    logger.info("Migration V3 complete — hash/dedup mirror + dead_letters")
+
+
 MIGRATIONS: list[tuple[int, str, Any]] = [
     (1, "Create initial tables (job_listings, applications, resumes, email_lookups)", _migrate_v1),
     (2, "Add posted_at_date column to job_listings", _migrate_v2),
+    (3, "Hash/dedup mirror + dead_letters (V3)", _migrate_v3),
 ]
 
 
@@ -340,6 +406,12 @@ async def get_job_by_url(session: AsyncSession, url: str) -> ORMJobListing | Non
     result = await session.execute(
         select(ORMJobListing).where(ORMJobListing.url == url)
     )
+    return result.scalar_one_or_none()
+
+
+async def get_job_by_canonical_id(session: AsyncSession, canonical_id: str) -> ORMJobListing | None:
+    """Return job by canonical_id (64 hex) or None — mirrors Postgres helper."""
+    result = await session.execute(select(ORMJobListing).where(ORMJobListing.canonical_id == canonical_id))
     return result.scalar_one_or_none()
 
 
