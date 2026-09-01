@@ -23,6 +23,8 @@ applications/
 # Tokens
 *.token
 credentials.json
+*.enc
+data/*.enc
 
 # OS
 .DS_Store
