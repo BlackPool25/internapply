@@ -1,0 +1,157 @@
+# =============================================================================
+# InternApply — Docker Compose (Production)
+# =============================================================================
+# Usage:
+#   Production : docker compose -f docker/docker-compose.yml up -d
+#   Development: docker compose -f docker/docker-compose.yml -f docker/docker-compose.override.yml up -d
+#   Or simply  : docker compose -f docker/docker-compose.yml up          (override auto-merged when exists)
+# =============================================================================
+
+name: internapply
+
+volumes:
+  pgdata:
+  redis_data:
+
+networks:
+  backend:
+  frontend:
+
+services:
+  # ---------------------------------------------------------------------------
+  # Service 1: PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: internapply-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: internapply
+      POSTGRES_USER: internapply
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?error}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U internapply"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+
+  # ---------------------------------------------------------------------------
+  # Service 2: Redis — job queue & state store for background workers
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: internapply-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - backend
+
+  # ---------------------------------------------------------------------------
+  # Service 3: proxybroker2 — free proxy rotation (HTTP/HTTPS/SOCKS5)
+  # ---------------------------------------------------------------------------
+  proxybroker:
+    build:
+      context: .
+      dockerfile: Dockerfile.proxybroker
+    container_name: internapply-proxybroker
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    networks:
+      - backend
+
+  # ---------------------------------------------------------------------------
+  # Service 4: Python FastAPI Backend (production — no volume, no --reload)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: internapply-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    entrypoint: ["./docker/entrypoint.sh"]
+    command: ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      proxybroker:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+asyncpg://internapply:${DB_PASSWORD:?error}@postgres:5432/internapply
+      REDIS_URL: redis://redis:6379/0
+      PROXY_URL: socks5://proxybroker:8888
+      OPENCODE_GO_API_KEY: ${OPENCODE_GO_API_KEY}
+      HUNTER_API_KEY: ${HUNTER_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - backend
+      - frontend
+
+  # ---------------------------------------------------------------------------
+  # Service 5: arq Worker — background pipeline execution
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: internapply-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://internapply:${DB_PASSWORD:?error}@postgres:5432/internapply
+      REDIS_URL: redis://redis:6379/0
+      PROXY_URL: socks5://proxybroker:8888
+      OPENCODE_GO_API_KEY: ${OPENCODE_GO_API_KEY}
+      HUNTER_API_KEY: ${HUNTER_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    command: ["python", "-m", "backend.app.worker"]
+    networks:
+      - backend
+
+  # ---------------------------------------------------------------------------
+  # Service 4: React / Next.js Frontend (production — no volume, standalone server)
+  # ---------------------------------------------------------------------------
+  ui:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.nextjs
+    container_name: internapply-ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    networks:
+      - frontend
