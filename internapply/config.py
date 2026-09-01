@@ -201,7 +201,7 @@ _OPTIONAL_KEYS = {
 def _log_config(cfg: Config) -> None:
     """Log each config field, masking secrets."""
     logger.info("── Configuration ──────────────────────────────────")
-    for field_name in cfg.model_fields:
+    for field_name in type(cfg).model_fields:
         raw = getattr(cfg, field_name)
         masked = _mask_value(field_name, raw)
         logger.info("  {:32s} = {}", field_name, masked)

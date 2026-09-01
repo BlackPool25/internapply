@@ -58,3 +58,7 @@ include = ["internapply*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+filterwarnings = [
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+    "ignore::pytest.PytestUnhandledThreadExceptionWarning",
+]
