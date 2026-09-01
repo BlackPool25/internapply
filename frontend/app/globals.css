@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--mantine-color-body);
+  --color-foreground: var(--mantine-color-text);
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+}
+
+body {
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-text);
+}

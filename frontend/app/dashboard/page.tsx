@@ -34,7 +34,7 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useDashboardStats, useOpportunities, useRecentActivity } from "@/lib/api";
 import { AppLayout } from "@/components/AppLayout";
-import boardsData from "../../../config/boards.json";
+
 
 const STATUS_ICONS: Record<string, React.ElementType> = {
   pending_review: Clock,
@@ -110,7 +110,7 @@ export default function DashboardPage() {
     : null;
 
   const drift = useMemo(() => driftStats(opportunities as unknown[]), [opportunities]);
-  const workingBoards = (boardsData as unknown as { working: unknown[] }).working?.length ?? 0;
+  const workingBoards = stats?.workingBoards ?? 0;
 
   const KPI_CARDS = [
     {

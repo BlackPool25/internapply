@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400" role="img" aria-labelledby="title desc">
+  <title id="title">InternApply demo — discover → filter → save → tailor</title>
+  <desc id="desc">Offline placeholder. Replace with assets/demo.gif when recorded.</desc>
+  <rect width="800" height="400" rx="12" fill="#0a0a0a"/>
+  <rect x="1.5" y="1.5" width="797" height="397" rx="12" fill="none" stroke="#2a2a2a" stroke-width="3"/>
+  <!-- window chrome -->
+  <circle cx="28" cy="28" r="7" fill="#ff5f56"/>
+  <circle cx="48" cy="28" r="7" fill="#ffbd2e"/>
+  <circle cx="68" cy="28" r="7" fill="#27c93f"/>
+  <line x1="0" y1="48" x2="800" y2="48" stroke="#1e1e1e" stroke-width="1"/>
+  <!-- centered text -->
+  <text x="400" y="165" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#fafafa">InternApply</text>
+  <text x="400" y="200" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" fill="#a1a1aa">discover → filter → save → tailor</text>
+  <text x="400" y="230" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#71717a">Zero per 1k · verifier WARN at 80 · 30s walkthrough</text>
+  <!-- terminal line -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13">
+    <text x="80" y="285" fill="#22c55e">$</text>
+    <text x="96" y="285" fill="#e4e4e7">internapply discover --dry-run</text>
+    <text x="80" y="308" fill="#71717a">discover → 127 listings · filter → 42 new · save → Postgres 16</text>
+  </g>
+  <!-- footer hint -->
+  <text x="400" y="360" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" fill="#52525b">SVG placeholder — replace with assets/demo.gif when recorded</text>
+</svg>

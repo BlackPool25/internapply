@@ -1,6 +1,6 @@
 # InternApply
 
-<p align="center">
+<div align="center">
 
 [![CI](https://github.com/BlackPool25/internapply/actions/workflows/test.yml/badge.svg)](https://github.com/BlackPool25/internapply/actions/workflows/test.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/downloads/)
@@ -12,15 +12,15 @@
 
 **Automated internship discovery for paid backend roles. Tiered, free, and hallucination-proof.**
 
-</p>
+</div>
 
 > **TL;DR** InternApply fans out across ~100 ATS boards plus Hirist, Unstop, Internshala, JobSpy, and free overflow, dedups deterministically with hash simhash, saves to Postgres, and tailors resumes on demand with a verifier gate at 80. Discovery costs zero per thousand. LLM costs zero to twelve rupees per month.
 
-<p align="center">
- <img src="https://via.placeholder.com/800x400?text=InternApply+Demo+-+30s+walkthrough+coming+soon" alt="InternApply demo" width="800">
- <br>
- <em>30 second demo, discover, filter, save, tailor. GIF placeholder, replace with <code>assets/demo.gif</code> when recorded.</em>
-</p>
+<div align="center">
+  <img src="assets/demo.svg" alt="InternApply demo — 30s walkthrough: discover → filter → save → tailor" width="800">
+  <br>
+  <em>30 second demo — discover → filter → save → tailor. SVG placeholder (<code>assets/demo.svg</code>), replace with <code>assets/demo.gif</code> when recorded.</em>
+</div>
 
 ---
 
@@ -98,22 +98,22 @@ Requires `DB_PASSWORD` in env. See [Configuration](#configuration).
 
 ```mermaid
 flowchart LR
- subgraph Tier0[ Tier 0, ATS ~100 ]
+ subgraph Tier0["Tier 0: ATS (~100)"]
  A[Greenhouse]
  B[Lever]
  C[Ashby]
  D[SmartRecruiters]
  end
- subgraph Tier1[ Tier 1, Hirist + Unstop + Internshala ]
+ subgraph Tier1["Tier 1: Hirist + Unstop + Internshala"]
  E[Hirist gladiator<br/>gladiator.hirist.tech POST]
  F[Unstop corrected]
  G[Internshala XHR fragment]
  end
- subgraph Tier2[ Tier 2, JobSpy ]
+ subgraph Tier2["Tier 2: JobSpy"]
  H[Naukri]
  I[Indeed]
  end
- subgraph Tier3[ Tier 3, Overflow ]
+ subgraph Tier3["Tier 3: Overflow"]
  J[LinkedIn<br/>999 breaker + wreq-js]
  K[Arbeitnow / Remotive / TheMuse<br/>20 per page, 5 pages max]
  end
@@ -123,7 +123,7 @@ flowchart LR
  Tier2 --> DISCOVER
  Tier3 --> DISCOVER
 
- DISCOVER --> FILTER{filter<br/>canonical_id 64 UNIQUE<br/>jd_hash primary<br/>simhash Hamming <=3}
+ DISCOVER --> FILTER{"filter<br/>canonical_id 64 UNIQUE<br/>jd_hash primary<br/>simhash Hamming ≤3"}
  FILTER -->|new or changed| SAVE[(Postgres 16<br/>job_listings)]
  FILTER -->|exact dup| SKIP[skip]
  FILTER -->|near dup| SKIP
@@ -175,7 +175,7 @@ erDiagram
  job_listings {
  varchar canonical_id PK "VARCHAR 64 UNIQUE, sha256 salt+company+title+location+source"
  varchar jd_hash "VARCHAR 64, volatile stripped JD hash, primary change key"
- bigint simhash "BIGINT 64 bit simhash, residual Hamming <=3"
+ bigint simhash "BIGINT 64 bit simhash, residual Hamming ≤3"
  varchar etag "ETag header when present"
  jsonb change_log "JSONB diff_change_log new changed gone"
  varchar source_ats "source badge: greenhouse lever ashby hirist etc"
@@ -193,7 +193,7 @@ erDiagram
  text url "UNIQUE with source"
  int status_code "429 502 999 etc"
  text error
- timestamptz next_retry_at "indexed, retried when <= now"
+ timestamptz next_retry_at "indexed, retried when ≤ now"
  }
 ```
 

@@ -80,15 +80,18 @@ jobs:
 
       - name: Install Playwright
         run: |
-          python -m playwright install chromium --with-deps 2>&1 | tail -n 3
+          set -o pipefail
+          python -m playwright install chromium --with-deps 2>&1 | tee /tmp/playwright-install.log
 
       - name: Alembic upgrade
         run: |
-          alembic -c backend/alembic.ini upgrade head 2>&1 | tail -n 20
+          set -o pipefail
+          alembic -c backend/alembic.ini upgrade head 2>&1 | tee /tmp/alembic-upgrade.log
 
       - name: Probe boards dry run
+        # ponytail: warning-only — informational probe, not a gate; keep continue-on-error
         run: |
-          python scripts/probe_boards.py --limit 20 2>&1 | tail -n 20
+          python scripts/probe_boards.py --limit 20 2>&1 | tee /tmp/probe-boards.log
         continue-on-error: true
 
       - name: Restore Internshala session
@@ -117,6 +120,7 @@ jobs:
           NAUKRI_APIFY_TOKEN: ${{ secrets.NAUKRI_APIFY_TOKEN }}
           DISPLAY: :99
         run: |
+          set -o pipefail
           Xvfb :99 -screen 0 1280x1024x24 -ac 2>/dev/null &
           sleep 1
           MAX_JOBS="${{ github.event.inputs.max_jobs || '10' }}"
