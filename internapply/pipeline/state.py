@@ -1,10 +1,4 @@
-"""Pipeline state schema for InternApply.
-
-Defines the :class:`PipelineState` TypedDict used by the LangGraph state
-graph to carry data between pipeline nodes.  Fields marked with
-``Annotated[list[str], operator.add]`` support LangGraph's built-in reducer
-for accumulating values across node invocations.
-"""
+"""Pipeline state schema for InternApply — truncated to discover→filter→save."""
 
 from __future__ import annotations
 
@@ -15,49 +9,29 @@ from typing_extensions import TypedDict
 
 
 class PipelineState(TypedDict):
-    """Complete pipeline state carried through the LangGraph.
+    """Truncated pipeline state: discover → filter → save (no LLM in batch)."""
 
-    Every node function reads from and writes to this dict.  Fields are
-    grouped by pipeline phase — discovery, tailoring, outreach, tracking.
-    """
-
-    # ── Configuration ──────────────────────────────────────────────────
-    config: dict  # Snapshot of the current application config
-
-    # ── Job discovery results ──────────────────────────────────────────
-    jobs: list[dict]  # List of job listings (serialized JobListing dicts)
-    raw_jobs_count: int  # Total jobs found before filtering
-    filtered_jobs_count: int  # Jobs after post-filtering
-
-    # ── Current job being processed ────────────────────────────────────
-    current_job_index: int  # Index of the job currently being processed
-    current_job: dict | None  # The current job listing (serialized)
-
-    # ── Resume tailoring ───────────────────────────────────────────────
-    master_resume: dict | None  # Loaded master resume data
-    tailored_resume: dict | None  # Tailored resume output
-    verifier_report: dict | None  # Verifier gate report
-
-    # ── Cover letter ───────────────────────────────────────────────────
+    config: dict
+    jobs: list[dict]
+    job_listings: list[dict]
+    raw_jobs_count: int
+    filtered_jobs_count: int
+    current_job_index: int
+    current_job: dict | None
+    master_resume: dict | None
+    tailored_resume: dict | None
+    verifier_report: dict | None
     cover_letter: str | None
-
-    # ── Email outreach ─────────────────────────────────────────────────
     email_draft: str | None
     email_contacts: list[dict]
     humanization_score: float | None
-
-    # ── Application tracking ──────────────────────────────────────────
-    application_results: list[dict]  # Results of each application attempt
-
-    # ── Pipeline control ───────────────────────────────────────────────
-    errors: Annotated[list[str], operator.add]  # Accumulated errors
-    warnings: Annotated[list[str], operator.add]  # Accumulated warnings
-    run_id: str | None  # Unique run identifier
-    dry_run: bool  # If True, simulate without real API calls
-    stage: str  # Current pipeline stage name
-
-
-# ── Factory helpers ─────────────────────────────────────────────────────
+    application_results: list[dict]
+    errors: Annotated[list[str], operator.add]
+    warnings: Annotated[list[str], operator.add]
+    run_id: str | None
+    dry_run: bool
+    stage: str
+    _cursor_max_seen: str
 
 
 def initial_state(
@@ -65,15 +39,10 @@ def initial_state(
     dry_run: bool = False,
     run_id: str | None = None,
 ) -> PipelineState:
-    """Return a fresh :class:`PipelineState` with default / empty values.
-
-    This is the standard entry-point for creating pipeline state — it
-    ensures every field is present with a sensible default so that nodes
-    do not need to guard against ``KeyError``.
-    """
     return PipelineState(
         config=config or {},
         jobs=[],
+        job_listings=[],
         raw_jobs_count=0,
         filtered_jobs_count=0,
         current_job_index=0,
@@ -91,10 +60,8 @@ def initial_state(
         run_id=run_id,
         dry_run=dry_run,
         stage="init",
+        _cursor_max_seen="",
     )
 
 
-__all__ = [
-    "PipelineState",
-    "initial_state",
-]
+__all__ = ["PipelineState", "initial_state"]

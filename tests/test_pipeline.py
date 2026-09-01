@@ -1,160 +1,102 @@
-"""Tests for pipeline state, graph compilation, and topology.
-
-Verifies that PipelineState is created with correct defaults, the LangGraph
-compiles without errors, and the graph has the expected 7-node topology.
-"""
+"""Tests for truncated pipeline: 3 nodes, seen_canonical_id, no LLM, SmartRecruiters empty vs 404."""
 
 from __future__ import annotations
 
 import pytest
 
-from internapply.pipeline.state import PipelineState, initial_state
-from internapply.pipeline.graph import create_pipeline
+from internapply.pipeline.state import initial_state as intern_initial
+from internapply.pipeline.graph import create_pipeline as intern_create
+from internapply.pipeline.nodes import discover_jobs, filter_jobs
 
 
-# ---------------------------------------------------------------------------
-# Tests — PipelineState
-# ---------------------------------------------------------------------------
+class TestDashboardOnly3Nodes:
+    def test_dashboard_only_3_nodes(self):
+        """Pipeline must have exactly 3 nodes, no tailor."""
+        g = intern_create()
+        user_nodes = {n for n in g.nodes if not n.startswith("__")}
+        assert len(user_nodes) == 3, f"expected 3 nodes got {user_nodes}"
+        assert "tailor" not in user_nodes
+        assert user_nodes == {"discover", "filter", "save"}
+
+    def test_backend_pipeline_3_nodes(self):
+        from backend.app.pipeline.orchestrator import create_pipeline
+        g = create_pipeline()
+        # langgraph StateGraph nodes dict may have internal keys; filter __
+        # Compiled graph nodes via .nodes or .get_graph().nodes
+        try:
+            nodes = set(g.nodes.keys())
+        except Exception:
+            nodes = set(g.get_graph().nodes.keys())
+        user = {n for n in nodes if not n.startswith("__")}
+        assert len(user) == 3, f"backend expected 3 nodes got {user}"
+        assert "tailor" not in user
 
 
-class TestPipelineState:
-    """PipelineState factory and field defaults."""
-
-    def test_initial_state(self):
-        """PipelineState created with correct default values."""
-        state = initial_state()
-
-        assert isinstance(state, dict)
-        assert state["jobs"] == []
-        assert state["raw_jobs_count"] == 0
-        assert state["filtered_jobs_count"] == 0
-        assert state["current_job_index"] == 0
-        assert state["current_job"] is None
-        assert state["master_resume"] is None
-        assert state["tailored_resume"] is None
-        assert state["verifier_report"] is None
-        assert state["cover_letter"] is None
-        assert state["email_draft"] is None
-        assert state["email_contacts"] == []
-        assert state["humanization_score"] is None
-        assert state["application_results"] == []
-        assert state["errors"] == []
-        assert state["warnings"] == []
-        assert state["run_id"] is None
-        assert state["dry_run"] is False
-        assert state["stage"] == "init"
-
-    def test_initial_state_with_config(self):
-        """initial_state accepts optional config and dry_run override."""
-        state = initial_state(
-            config={"MIN_STIPEND_INR": 10000},
-            dry_run=True,
-            run_id="test-run-001",
-        )
-
-        assert state["config"] == {"MIN_STIPEND_INR": 10000}
-        assert state["dry_run"] is True
-        assert state["run_id"] == "test-run-001"
-
-    def test_initial_state_pipeline_state_type(self):
-        """initial_state returns a proper PipelineState TypedDict."""
-        state = initial_state()
-        # PipelineState accepts key-based assignment (TypedDict)
-        assert "config" in state
-        assert "jobs" in state
-        assert "errors" in state
-        assert "stage" in state
-
-    def test_state_errors_accumulate(self):
-        """errors and warnings use ``operator.add`` reducer (append, not replace)."""
-        state = initial_state()
-        state["errors"].append("First error")
-        state["errors"].append("Second error")
-        assert len(state["errors"]) == 2
-        assert state["errors"] == ["First error", "Second error"]
-
-
-# ---------------------------------------------------------------------------
-# Tests — Graph compilation & topology
-# ---------------------------------------------------------------------------
-
-
-class TestPipelineGraph:
-    """LangGraph pipeline graph compilation and topology."""
-
-    def test_graph_compiles(self):
-        """create_pipeline() compiles without raising any exceptions."""
-        graph = create_pipeline()
-        assert graph is not None, "create_pipeline() should return a compiled graph"
-
-    def test_graph_has_correct_nodes(self):
-        """Graph contains exactly the 7 expected pipeline nodes."""
-        graph = create_pipeline()
-
-        expected_nodes = {
-            "discover",
-            "filter",
-            "analyze",
-            "tailor",
-            "cover_letter",
-            "email",
-            "apply",
-        }
-        # Exclude internal nodes like __start__
-        actual_nodes = {
-            n for n in graph.nodes.keys() if not n.startswith("__")
-        }
-
-        assert actual_nodes == expected_nodes, (
-            f"Expected nodes {expected_nodes} but got {actual_nodes}"
-        )
-
-    def test_graph_node_count(self):
-        """Graph has exactly 7 user-defined pipeline nodes."""
-        graph = create_pipeline()
-        user_nodes = [n for n in graph.nodes if not n.startswith("__")]
-        assert len(user_nodes) == 7, (
-            f"Expected 7 user nodes in graph but got {len(user_nodes)} "
-            f"(all nodes including internal: {list(graph.nodes.keys())})"
-        )
-
-    def test_graph_entry_point(self):
-        """Graph entry point is 'discover'."""
-        graph = create_pipeline()
-        # The compiled graph builder stores the entry point
-        assert "discover" in graph.nodes, "Entry node 'discover' must be in graph"
-
+class TestSeenCanonicalId:
     @pytest.mark.asyncio
-    async def test_graph_topology_order(self):
-        """Graph nodes are connected in the expected linear order (smoke check).
+    async def test_seen_canonical_id_duplicate_skipped(self):
+        """Second run duplicate canonical_id is skipped via seen_canonical_id dedup."""
+        state = intern_initial(dry_run=False)
+        # craft two jobs with same canonical_id
+        from internapply.discovery.hash_utils import canonical_id
+        cid = canonical_id("Acme", "DevOps Intern", "Bangalore", "https://example.com/1")
+        jobs = [
+            {"title": "DevOps Intern", "company": "Acme", "location": "Bangalore", "url": "https://example.com/1", "canonical_id": cid, "jd_hash": "a"*64, "description": "d1"},
+            {"title": "DevOps Intern", "company": "Acme", "location": "Bangalore", "url": "https://example.com/1", "canonical_id": cid, "jd_hash": "a"*64, "description": "d1"},
+        ]
+        state["jobs"] = jobs
+        state["job_listings"] = jobs
+        result = await filter_jobs(state)
+        filtered = result.get("jobs") or result.get("job_listings") or []
+        assert len(filtered) == 1, f"duplicate canonical_id should be deduped to 1, got {len(filtered)}"
 
-        This runs a dry-run invoke through the entire pipeline to verify
-        the graph wiring is sound end-to-end.
-        """
-        graph = create_pipeline()
 
-        state = initial_state(
-            config={
-                "MIN_STIPEND_INR": 5000,
-                "SEARCH_LOCATIONS": ["Remote", "Bangalore"],
-            },
-            dry_run=True,
-            run_id="test-topology",
-        )
+class TestNoLLMInBatch:
+    @pytest.mark.asyncio
+    async def test_no_llm_in_batch(self):
+        """Dry-run discover→filter must not call LLM (counter 0)."""
+        from internapply.pipeline.nodes import _get_llm_count, _reset_llm_count
+        _reset_llm_count()
+        g = intern_create()
+        state = intern_initial(dry_run=True, run_id="test-no-llm")
+        result = await g.ainvoke(state, config={"configurable": {"thread_id": "test-no-llm-1"}})
+        assert _get_llm_count() == 0, f"LLM count should be 0 in dry-run, got {_get_llm_count()}"
+        assert result.get("stage") == "save"
 
-        # Invoke the graph via async API (nodes are async functions)
-        result = await graph.ainvoke(
-            state,
-            config={"configurable": {"thread_id": "test-topology-1"}},
-        )
 
-        assert result["stage"] == "apply", (
-            f"Expected final stage 'apply' but got '{result['stage']}'"
-        )
-        # Only Internshala-sourced jobs get submitted (2 of 3 mock jobs)
-        results = result.get("application_results", [])
-        assert len(results) == 2, (
-            f"Expected 2 application results (Internshala-sourced only) "
-            f"but got {len(results)}: {[r['title'] for r in results]}"
-        )
-        assert result["dry_run"] is True
+class TestSmartRecruitersEmptyVs404:
+    @pytest.mark.asyncio
+    async def test_smartrecruiters_empty_vs_404(self):
+        """SmartRecruiters 200 empty handled not exception; 404 returns None via _http."""
+        from unittest.mock import AsyncMock, patch
+        import httpx
+        from backend.app.discovery.ats.smartrecruiters import SmartRecruitersDiscovery
+
+        # Case 1: 200 with empty content and totalFound 0 → returns [] not exception
+        mock_client = AsyncMock()
+        # mock fetch_json to return {"content": [], "totalFound": 0}
+        with patch("backend.app.discovery.ats._http.fetch_json", new=AsyncMock(return_value={"content": [], "totalFound": 0})):
+            disc = SmartRecruitersDiscovery()
+            result = await disc.search(boards=[{"slug": "testco", "ats_type": "smartrecruiters"}])
+            assert result == [], f"empty with totalFound 0 should return [] not exception, got {result}"
+
+        # Case 2: 200 with empty dict (no content key) → treated as dead, returns []
+        with patch("backend.app.discovery.ats._http.fetch_json", new=AsyncMock(return_value={})):
+            disc = SmartRecruitersDiscovery()
+            result = await disc.search(boards=[{"slug": "testco2", "ats_type": "smartrecruiters"}])
+            assert result == []
+
+        # Case 3: fetch_json returns None (404) → returns [] not exception
+        with patch("backend.app.discovery.ats._http.fetch_json", new=AsyncMock(return_value=None)):
+            disc = SmartRecruitersDiscovery()
+            result = await disc.search(boards=[{"slug": "deadco", "ats_type": "smartrecruiters"}])
+            assert result == []
+
+        # Case 4: 200 with data → parses
+        payload = {"content": [{"id": "1", "name": "DevOps Intern", "company": {"name": "Acme"}, "location": {"city": "Bangalore"}, "jobAd": {"sections": [{"text": "desc"}]}, "ref": "https://example.com/1"}]}
+        with patch("backend.app.discovery.ats._http.fetch_json", new=AsyncMock(return_value=payload)):
+            disc = SmartRecruitersDiscovery()
+            result = await disc.search(boards=[{"slug": "acme", "ats_type": "smartrecruiters"}])
+            assert len(result) == 1
+            assert result[0]["canonical_id"]
+            assert len(result[0]["canonical_id"]) == 64
