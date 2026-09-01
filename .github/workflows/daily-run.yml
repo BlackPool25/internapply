@@ -92,10 +92,13 @@ jobs:
         continue-on-error: true
 
       - name: Restore Internshala session
-        if: ${{ secrets.INTERNSHALA_SESSION_JSON != '' }}
         run: |
-          mkdir -p applications
-          echo '${{ secrets.INTERNSHALA_SESSION_JSON }}' > applications/browser_session.json
+          if [ -n "${{ secrets.INTERNSHALA_SESSION_JSON }}" ]; then
+            mkdir -p applications
+            echo '${{ secrets.INTERNSHALA_SESSION_JSON }}' > applications/browser_session.json
+          else
+            echo "No Internshala session secret — skipping"
+          fi
 
       - name: Random start delay
         run: |
