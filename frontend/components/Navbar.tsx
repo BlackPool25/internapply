@@ -16,11 +16,14 @@ import {
   Menu,
   X,
   Sparkles,
+  Sliders,
+  Zap,
 } from "lucide-react";
-import { usePipelineRun } from "@/lib/api";
+import { usePipelineStatus } from "@/lib/api";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Pipeline", href: "/pipeline", icon: Sparkles },
   { label: "Internships", href: "/internships", icon: Briefcase },
   { label: "Freelance", href: "/freelance", icon: Gem },
   { label: "Companies", href: "/companies", icon: Building2 },
@@ -31,18 +34,9 @@ const NAV_ITEMS = [
 export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const pipelineRunMutation = usePipelineRun();
-  const [runSuccess, setRunSuccess] = useState(false);
+  const { data: pipelineStatus } = usePipelineStatus();
 
-  const handleQuickRun = async () => {
-    try {
-      await pipelineRunMutation.mutateAsync(false);
-      setRunSuccess(true);
-      setTimeout(() => setRunSuccess(false), 3000);
-    } catch {
-      // handled
-    }
-  };
+  const isRunning = pipelineStatus?.status === "running";
 
   return (
     <header className="sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 pt-4 pb-2 bg-[#F0EFEC]/90 backdrop-blur-md">
@@ -71,7 +65,7 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
+                className={`relative px-3.5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 ${
                   isActive
                     ? "text-white bg-[#17171A] shadow-sm"
                     : "text-[#7A7A82] hover:text-[#17171A] hover:bg-[#F5F4F0]"
@@ -85,7 +79,7 @@ export function Navbar() {
                   />
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
-                  <item.icon size={14} />
+                  <item.icon size={13} />
                   {item.label}
                 </span>
               </Link>
@@ -95,25 +89,25 @@ export function Navbar() {
 
         {/* Right Action Cluster */}
         <div className="flex items-center gap-2.5">
-          {/* Quick Pipeline Run */}
-          <button
-            onClick={handleQuickRun}
-            disabled={pipelineRunMutation.isPending}
-            className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-semibold shadow-sm transition-all duration-200 ${
-              runSuccess
-                ? "bg-[#2BC7A0] text-white"
-                : "bg-white text-[#17171A] hover:bg-[#17171A] hover:text-white border border-[#EBEAE6]"
-            } disabled:opacity-60`}
-          >
-            {pipelineRunMutation.isPending ? (
-              <div className="w-3.5 h-3.5 border-2 border-[#7C5CFC] border-t-transparent rounded-full animate-spin" />
-            ) : runSuccess ? (
-              <CheckCircle2 size={14} />
-            ) : (
-              <Play size={12} className="fill-current text-[#7C5CFC]" />
-            )}
-            <span>{pipelineRunMutation.isPending ? "Running..." : runSuccess ? "Discovered!" : "Run Pipeline"}</span>
-          </button>
+          {/* Live Background Progress Pill */}
+          {isRunning ? (
+            <Link
+              href="/pipeline"
+              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#7C5CFC] text-white text-xs font-semibold shadow-md hover:bg-[#6847E8] transition-all animate-pulse"
+            >
+              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="font-mono text-[11px]">{pipelineStatus?.progress_pct ?? 0}%</span>
+              <span className="hidden sm:inline text-[11px]">Running...</span>
+            </Link>
+          ) : (
+            <Link
+              href="/pipeline"
+              className="hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-semibold bg-white text-[#17171A] hover:bg-[#17171A] hover:text-white border border-[#EBEAE6] shadow-2xs transition-all"
+            >
+              <Zap size={13} className="text-[#7C5CFC]" />
+              <span>Launch Scrapers</span>
+            </Link>
+          )}
 
           {/* System Status Pill */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-[11px] font-medium text-[#7A7A82] border border-[#EBEAE6]">

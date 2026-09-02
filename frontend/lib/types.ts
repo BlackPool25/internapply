@@ -108,3 +108,42 @@ export interface VerifierReport {
   violations: Array<string | { check: string; detail: string }>;
   warnings: Array<string | { check: string; detail: string }>;
 }
+
+export interface PipelineStep {
+  id: string;
+  label: string;
+  status: "pending" | "running" | "completed" | "skipped" | "failed";
+  count: number;
+}
+
+export interface PipelineLog {
+  timestamp: string;
+  level: "info" | "success" | "warn" | "error";
+  message: string;
+}
+
+export interface PipelineConfig {
+  dry_run: boolean;
+  keywords: string;
+  locations: string;
+  track?: string;
+  tiers: string[];
+  sources: string[];
+  limit?: number;
+}
+
+export interface PipelineStatusResponse {
+  run_id: string | null;
+  status: "idle" | "running" | "completed" | "failed" | "stopped";
+  progress_pct: number;
+  active_step: string;
+  current_tier: string | null;
+  jobs_found: number;
+  companies_found: number;
+  errors: string[];
+  logs: PipelineLog[];
+  steps: PipelineStep[];
+  started_at: string | null;
+  completed_at: string | null;
+  config: Partial<PipelineConfig>;
+}

@@ -7,6 +7,8 @@ import type {
   DashboardStats,
   Company,
   VerifierReport,
+  PipelineStatusResponse,
+  PipelineConfig,
 } from "./types";
 
 // ── API base ───────────────────────────────────────────
@@ -250,11 +252,58 @@ export function useQualityCheck() {
 
 // ── Pipeline ───────────────────────────────────────────
 
+export function usePipelineStatus() {
+  const queryClient = useQueryClient();
+
+  return useQuery<PipelineStatusResponse>({
+    queryKey: ["pipeline", "status"],
+    queryFn: () => apiFetch<PipelineStatusResponse>("/pipeline/status"),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.status === "running" ? 1000 : 4000;
+    },
+    staleTime: 500,
+  });
+}
+
+export function usePipelineRunConfig() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (config: PipelineConfig) =>
+      apiFetch<{ status: string; run_id: string; message: string; config?: any }>(
+        "/pipeline/run",
+        {
+          method: "POST",
+          body: JSON.stringify(config),
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] });
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function usePipelineStop() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiFetch<{ status: string; message: string }>("/pipeline/stop", {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] });
+    },
+  });
+}
+
 export function usePipelineRun() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (dryRun: boolean = true) =>
-      apiFetch<{ status: string; stage?: string; jobs_found: number; companies_found: number; errors: number }>(
+      apiFetch<{ status: string; run_id?: string; stage?: string; jobs_found?: number; companies_found?: number; errors?: number }>(
         "/pipeline/run",
         {
           method: "POST",
@@ -262,6 +311,7 @@ export function usePipelineRun() {
         }
       ),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] });
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       queryClient.invalidateQueries({ queryKey: ["companies"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -277,6 +327,7 @@ export function usePipelineClear() {
         method: "POST",
       }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] });
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       queryClient.invalidateQueries({ queryKey: ["companies"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -288,13 +339,14 @@ export function usePipelineRerun() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiFetch<{ status: string; items_rerun: number; stage: string }>(
+      apiFetch<{ status: string; items_rerun: number; stage?: string; run_id?: string }>(
         "/pipeline/rerun",
         {
           method: "POST",
         }
       ),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline", "status"] });
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       queryClient.invalidateQueries({ queryKey: ["companies"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });

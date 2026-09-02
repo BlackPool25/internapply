@@ -35,16 +35,4 @@ services:
         "--reload",
       ]
 
-  # ---------------------------------------------------------------------------
-  # Frontend — dev overrides
-  # ---------------------------------------------------------------------------
-  ui:
-    volumes:
-      # Mount frontend source for live reload
-      - ../frontend:/app
-      # Preserve container-installed node_modules (anonymous volume)
-      - /app/node_modules
-    environment:
-      # Enable file polling so changes in bind-mounted dirs are detected
-      - WATCHPACK_POLLING=true
-    command: ["bun", "run", "dev"]
+
