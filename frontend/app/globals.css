@@ -1,14 +1,91 @@
 @import "tailwindcss";
 
-@theme inline {
-  --color-background: var(--mantine-color-body);
-  --color-foreground: var(--mantine-color-text);
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+@theme {
+  --color-canvas: #F0EFEC;
+  --color-card: #FFFFFF;
+  --color-accent-purple: #7C5CFC;
+  --color-accent-coral: #FF6B57;
+  --color-accent-yellow: #FFC94A;
+  --color-accent-teal: #2BC7A0;
+  --color-accent-blue: #5B8DEF;
+  --color-text-primary: #17171A;
+  --color-text-secondary: #7A7A82;
+
+  --font-display: var(--font-display), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: var(--font-body), -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: var(--font-mono), monospace;
+
+  --shadow-eonix: 0px 8px 24px rgba(23, 23, 26, 0.06);
+  --shadow-eonix-hover: 0px 12px 32px rgba(23, 23, 26, 0.10);
+  --shadow-eonix-floating: 0px 16px 40px rgba(23, 23, 26, 0.12);
+
+  --radius-card: 24px;
+  --radius-button: 12px;
+  --radius-capsule: 9999px;
+}
+
+:root {
+  --bg-canvas: #F0EFEC;
+  --bg-card: #FFFFFF;
+  --text-primary: #17171A;
+  --text-secondary: #7A7A82;
 }
 
 body {
-  background: var(--mantine-color-body);
-  color: var(--mantine-color-text);
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body), -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for clean Kanban horizontal/vertical scroll */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(122, 122, 130, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(122, 122, 130, 0.4);
+}
+
+/* Reusable Eonix Card */
+.eonix-card {
+  background-color: #FFFFFF;
+  border-radius: 24px;
+  box-shadow: 0px 8px 24px rgba(23, 23, 26, 0.06);
+  padding: 24px;
+  position: relative;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.eonix-card-hover:hover {
+  box-shadow: 0px 12px 32px rgba(23, 23, 26, 0.09);
+}
+
+/* Floating pill that overlaps top-right corner of cards */
+.eonix-floating-pill {
+  position: absolute;
+  top: -14px;
+  right: 24px;
+  background-color: #FFFFFF;
+  box-shadow: 0px 4px 16px rgba(23, 23, 26, 0.08);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
 }

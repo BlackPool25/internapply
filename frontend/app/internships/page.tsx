@@ -3,13 +3,13 @@
 import { AppLayout } from "@/components/AppLayout";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
-export default function OpportunitiesPage() {
+export default function InternshipsPage() {
   return (
     <AppLayout>
       <KanbanBoard
         sourceType="internship"
-        title="Opportunities Pipeline"
-        description="Comprehensive Kanban tracking across all active internship and research leads."
+        title="Internship Pipeline"
+        description="Kanban workflow for engineering, product, and AI internships across ATS feeds & portals."
       />
     </AppLayout>
   );

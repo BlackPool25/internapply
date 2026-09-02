@@ -1,129 +1,117 @@
 "use client";
 
-import {
-  AppShell,
-  Burger,
-  Group,
-  NavLink,
-  Text,
-  Title,
-  useMantineColorScheme,
-  ActionIcon,
-  Tooltip,
-  Container,
-  Box,
-  Divider,
-} from "@mantine/core";
+import { ReactNode } from "react";
+import { Navbar } from "./Navbar";
 
-import { useDisclosure } from "@mantine/hooks";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Briefcase,
-  FileText,
-  Building2,
-  Send,
-  Layers,
-  Settings,
-  Moon,
-  Sun,
-  Gem,
-} from "lucide-react";
-
-const NAV_ITEMS = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Opportunities", icon: Briefcase, href: "/opportunities" },
-  { label: "Freelance", icon: Gem, href: "/freelance" },
-  { label: "Applications", icon: FileText, href: "/applications" },
-  { label: "Companies", icon: Building2, href: "/companies" },
-  { label: "Outreach", icon: Send, href: "/outreach" },
-  { label: "Batch", icon: Layers, href: "/batch" },
-  { label: "Settings", icon: Settings, href: "/settings" },
-];
-
-export function AppLayout({ children }: { children: React.ReactNode }) {
-  const [opened, { toggle }] = useDisclosure(true);
-  const pathname = usePathname();
-  const { colorScheme, setColorScheme } = useMantineColorScheme();
-  const isDark = colorScheme === "dark";
-
+export function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <AppShell
-      header={{ height: 56 }}
-      navbar={{
-        width: 260,
-        breakpoint: "sm",
-        collapsed: { mobile: !opened, desktop: !opened },
-      }}
-      padding="lg"
-    >
-      <AppShell.Header withBorder>
-        <Group h="100%" px="lg" justify="space-between">
-          <Group gap="xs">
-            <Burger opened={opened} onClick={toggle} size="sm" />
-            <Title order={4}>InternApply</Title>
-          </Group>
-          <Group gap="sm">
-            <Text size="sm" c="dimmed" visibleFrom="sm">
-              Track · Apply · Succeed
-            </Text>
-            <Tooltip label={isDark ? "Light mode" : "Dark mode"}>
-              <ActionIcon
-                variant="subtle"
-                size="lg"
-                onClick={() => setColorScheme(isDark ? "light" : "dark")}
-              >
-                {isDark ? <Sun size={18} /> : <Moon size={18} />}
-              </ActionIcon>
-            </Tooltip>
-          </Group>
-        </Group>
-      </AppShell.Header>
+    <div className="min-h-screen bg-[#F0EFEC] flex flex-col font-sans selection:bg-[#7C5CFC]/20 selection:text-[#7C5CFC]">
+      {/* Global SVG Pattern Definitions for Hatch-Textured Charts */}
+      <svg className="absolute w-0 h-0 pointer-events-none" aria-hidden="true">
+        <defs>
+          {/* 45 degree hatch stripe patterns */}
+          <pattern
+            id="hatchPatternPurple"
+            width="8"
+            height="8"
+            patternTransform="rotate(45 0 0)"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="8" height="8" fill="#7C5CFC" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="8"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeOpacity="0.45"
+            />
+          </pattern>
 
-      <AppShell.Navbar withBorder p="xs">
-        <Box py="sm">
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href + "/"));
+          <pattern
+            id="hatchPatternYellow"
+            width="8"
+            height="8"
+            patternTransform="rotate(45 0 0)"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="8" height="8" fill="#FFC94A" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="8"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeOpacity="0.5"
+            />
+          </pattern>
 
-            return (
-              <NavLink
-                key={item.href}
-                component={Link}
-                href={item.href}
-                label={item.label}
-                leftSection={<item.icon size={18} />}
-                active={isActive}
-                variant="light"
-                color="blue"
-                style={{ borderRadius: "var(--mantine-radius-md)" }}
-                mb={4}
-              />
-            );
-          })}
-        </Box>
-        <Divider my="sm" />
-        <Box px="md" py="sm">
-          <Text size="xs" c="dimmed">
-            InternApply v0.2
-          </Text>
-        </Box>
-      </AppShell.Navbar>
+          <pattern
+            id="hatchPatternTeal"
+            width="8"
+            height="8"
+            patternTransform="rotate(45 0 0)"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="8" height="8" fill="#2BC7A0" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="8"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeOpacity="0.45"
+            />
+          </pattern>
 
-      <AppShell.Main
-        style={{
-          paddingTop: "calc(56px + var(--mantine-spacing-lg))",
-          paddingInlineStart: opened
-            ? "calc(260px + var(--mantine-spacing-lg))"
-            : "var(--mantine-spacing-lg)",
-        }}
-      >
-        <Container size="xl" py="lg">
-          {children}
-        </Container>
-      </AppShell.Main>
-    </AppShell>
+          <pattern
+            id="hatchPatternCoral"
+            width="8"
+            height="8"
+            patternTransform="rotate(45 0 0)"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="8" height="8" fill="#FF6B57" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="8"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeOpacity="0.45"
+            />
+          </pattern>
+
+          <pattern
+            id="hatchPatternBlue"
+            width="8"
+            height="8"
+            patternTransform="rotate(45 0 0)"
+            patternUnits="userSpaceOnUse"
+          >
+            <rect width="8" height="8" fill="#5B8DEF" />
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="8"
+              stroke="#FFFFFF"
+              strokeWidth="2.5"
+              strokeOpacity="0.45"
+            />
+          </pattern>
+        </defs>
+      </svg>
+
+      <Navbar />
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {children}
+      </main>
+    </div>
   );
 }

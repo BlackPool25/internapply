@@ -1,367 +1,580 @@
 "use client";
 
-import {
-  Container,
-  SimpleGrid,
-  Card,
-  Group,
-  Text,
-  Title,
-  ThemeIcon,
-  Stack,
-  Badge,
-  Skeleton,
-  Box,
-  Paper,
-  Alert,
-} from "@mantine/core";
+import { useMemo } from "react";
+import Link from "next/link";
+import { motion } from "motion/react";
 import {
   Briefcase,
-  Clock,
-  Layers,
-  Mail,
-  ArrowRight,
-  AlertCircle,
-  CheckCircle2,
+  Eye,
   Send,
-  FileText,
+  Building2,
+  Calendar,
+  Layers,
+  ArrowUpRight,
   TrendingUp,
-  Activity,
-  Database,
-  Hash,
+  Clock,
+  Sparkles,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  Gem,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useMemo } from "react";
-import { useDashboardStats, useOpportunities, useRecentActivity } from "@/lib/api";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  PieChart,
+  Pie,
+} from "recharts";
 import { AppLayout } from "@/components/AppLayout";
+import { useDashboardStats, useRecentActivity } from "@/lib/api";
 
-
-const STATUS_ICONS: Record<string, React.ElementType> = {
-  pending_review: Clock,
-  batch_ready: Layers,
-  saved: AlertCircle,
-  applied: Send,
+const STAGE_COLORS: Record<string, { solid: string; hatch: string; tint: string; text: string }> = {
+  Discovered: { solid: "#7A7A82", hatch: "#7A7A82", tint: "#F4F4F5", text: "#52525B" },
+  Reviewing: { solid: "#7C5CFC", hatch: "url(#hatchPatternPurple)", tint: "#F3EFFF", text: "#7C5CFC" },
+  Applied: { solid: "#FFC94A", hatch: "url(#hatchPatternYellow)", tint: "#FFF8E6", text: "#B45309" },
+  Interviewing: { solid: "#5B8DEF", hatch: "url(#hatchPatternBlue)", tint: "#EFF4FE", text: "#2563EB" },
+  Offer: { solid: "#2BC7A0", hatch: "url(#hatchPatternTeal)", tint: "#EAF9F5", text: "#059669" },
+  Rejected: { solid: "#FF6B57", hatch: "url(#hatchPatternCoral)", tint: "#FFF0EE", text: "#DC2626" },
 };
-
-const STATUS_COLORS: Record<string, string> = {
-  pending_review: "yellow",
-  batch_ready: "teal",
-  saved: "gray",
-  applied: "blue",
-  interview_scheduled: "violet",
-  rejected: "red",
-  offer: "green",
-};
-
-function getTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function driftStats(opps: unknown[] | undefined) {
-  if (!opps) return { newToday: 0, changed: 0, jdHit: 0 };
-  let newToday = 0;
-  let changed = 0;
-  let withHash = 0;
-  let hit = 0;
-  const today = new Date().toISOString().slice(0, 10);
-  for (const o of opps) {
-    const r = o as Record<string, unknown>;
-    const cl = r.change_log as Record<string, unknown> | null | undefined;
-    const drift = (r.drift ?? cl?.status ?? cl?.kind) as string | undefined;
-    const d = (r.posted_at ?? r.date) as string | undefined;
-    if (drift === "new" && d?.slice(0, 10) === today) newToday++;
-    // alternative: if no drift but posted today count as new
-    if (drift === "changed" || drift === "updated") changed++;
-    if (r.jd_hash ?? cl?.jd_hash) {
-      withHash++;
-      if (cl?.jd_hash) hit++;
-    } else if (cl && Object.keys(cl).length > 0) {
-      withHash++;
-      hit++;
-    }
-  }
-  // fallback: if no drift fields, estimate newToday as posted today
-  if (newToday === 0 && opps.length) {
-    newToday = opps.filter((o) => {
-      const r = o as Record<string, unknown>;
-      const d = (r.posted_at ?? r.date) as string | undefined;
-      return d?.slice(0, 10) === today;
-    }).length;
-  }
-  const pct = withHash ? Math.round((hit / withHash) * 100) : 0;
-  return { newToday, changed, jdHit: pct };
-}
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { data: stats, isLoading: statsLoading, isError: statsError, error: statsErrorObj } = useDashboardStats();
-  const { data: opportunities, isLoading: oppsLoading, isError: oppsError } = useOpportunities();
-  const { data: activity, isLoading: activityLoading, isError: activityError } = useRecentActivity();
+  const { data: stats, isLoading: statsLoading } = useDashboardStats();
+  const { data: activities, isLoading: activityLoading } = useRecentActivity();
 
-  const apiError = statsError || oppsError || activityError;
-  const apiErrorMessage = apiError
-    ? (statsErrorObj instanceof Error ? statsErrorObj.message : "Backend API is not available. Start the Docker containers first.")
-    : null;
+  // Funnel chart data mapped directly from stats.by_stage
+  const funnelData = useMemo(() => {
+    const byStage = stats?.by_stage || {
+      discovered: 0,
+      reviewing: 0,
+      applied: 0,
+      interviewing: 0,
+      offer: 0,
+      rejected: 0,
+    };
 
-  const drift = useMemo(() => driftStats(opportunities as unknown[]), [opportunities]);
-  const workingBoards = stats?.workingBoards ?? 0;
+    return [
+      { name: "Discovered", count: byStage.discovered || 0, color: STAGE_COLORS.Discovered.solid, fill: STAGE_COLORS.Discovered.solid },
+      { name: "Reviewing", count: byStage.reviewing || 0, color: STAGE_COLORS.Reviewing.solid, fill: STAGE_COLORS.Reviewing.hatch }, // Highlighted series with hatch pattern
+      { name: "Applied", count: byStage.applied || 0, color: STAGE_COLORS.Applied.solid, fill: STAGE_COLORS.Applied.solid },
+      { name: "Interviewing", count: byStage.interviewing || 0, color: STAGE_COLORS.Interviewing.solid, fill: STAGE_COLORS.Interviewing.solid },
+      { name: "Offer", count: byStage.offer || 0, color: STAGE_COLORS.Offer.solid, fill: STAGE_COLORS.Offer.solid },
+      { name: "Rejected", count: byStage.rejected || 0, color: STAGE_COLORS.Rejected.solid, fill: STAGE_COLORS.Rejected.solid },
+    ];
+  }, [stats]);
 
-  const KPI_CARDS = [
-    {
-      label: "New today",
-      value: stats?.newToday ?? drift.newToday,
-      icon: TrendingUp,
-      color: "green",
-      hint: "from change_log",
-    },
-    {
-      label: "Changed JDs",
-      value: stats?.changedJds ?? drift.changed,
-      icon: Activity,
-      color: "yellow",
-      hint: "drift changed",
-    },
-    {
-      label: "Working boards",
-      value: stats?.workingBoards ?? workingBoards,
-      suffix: workingBoards >= 100 ? "✓" : "",
-      icon: Database,
-      color: workingBoards >= 100 ? "green" : "gray",
-      hint: `${workingBoards} ≥100 ok`,
-    },
-    {
-      label: "JD hash hit%",
-      value: `${stats?.jdHashHitPct ?? drift.jdHit}%`,
-      icon: Hash,
-      color: "blue",
-      hint: "change_log",
-    },
-    {
-      label: "Total Opportunities",
-      value: stats?.totalOpportunities ?? opportunities?.length ?? 0,
-      icon: Briefcase,
-      color: "blue",
-    },
-    {
-      label: "Pending Review",
-      value: stats?.pendingReview ?? 0,
-      icon: Clock,
-      color: "yellow",
-    },
-    {
-      label: "Batch Ready",
-      value: stats?.batchReady ?? 0,
-      icon: Layers,
-      color: "teal",
-    },
-    {
-      label: "Emails to Send",
-      value: stats?.emailsToSend ?? 0,
-      icon: Mail,
-      color: "violet",
-    },
-  ];
+  // Source Tier Data
+  const tierData = useMemo(() => {
+    const byTier = stats?.by_source_tier || {
+      "Tier 0 (ATS)": 0,
+      "Tier 1 (Portals)": 0,
+      "Tier 2 (Aggregators)": 0,
+      "Tier 3 (APIs & RSS)": 0,
+    };
 
-  const pendingItems =
-    opportunities?.filter(
-      (o) => o.status === "pending_review" || o.status === "batch_ready"
-    ) ?? [];
+    const total = stats?.total_opportunities || 1;
+    return [
+      {
+        tier: "Tier 0 (ATS)",
+        desc: "Ashby, Greenhouse, Lever, SmartRecruiters",
+        count: byTier["Tier 0 (ATS)"] || 0,
+        pct: Math.round(((byTier["Tier 0 (ATS)"] || 0) / total) * 100),
+        color: "#7C5CFC",
+        hatch: true,
+      },
+      {
+        tier: "Tier 1 (Portals)",
+        desc: "Hirist, Unstop, Internshala",
+        count: byTier["Tier 1 (Portals)"] || 0,
+        pct: Math.round(((byTier["Tier 1 (Portals)"] || 0) / total) * 100),
+        color: "#2BC7A0",
+        hatch: false,
+      },
+      {
+        tier: "Tier 2 (Aggregators)",
+        desc: "LinkedIn, Indeed, JobSpy",
+        count: byTier["Tier 2 (Aggregators)"] || 0,
+        pct: Math.round(((byTier["Tier 2 (Aggregators)"] || 0) / total) * 100),
+        color: "#FFC94A",
+        hatch: false,
+      },
+      {
+        tier: "Tier 3 (APIs & RSS)",
+        desc: "Arbeitnow, The Muse, Freelancer, Upwork",
+        count: byTier["Tier 3 (APIs & RSS)"] || 0,
+        pct: Math.round(((byTier["Tier 3 (APIs & RSS)"] || 0) / total) * 100),
+        color: "#5B8DEF",
+        hatch: false,
+      },
+    ];
+  }, [stats]);
+
+  // Donut split data (Internships vs Freelance)
+  const donutData = useMemo(() => {
+    const internships = stats?.total_internships ?? (stats?.total_opportunities || 0);
+    const freelance = stats?.total_freelance ?? 0;
+    return [
+      { name: "Internships", value: internships, color: "#7C5CFC" },
+      { name: "Freelance", value: freelance, color: "#2BC7A0" },
+    ];
+  }, [stats]);
 
   return (
     <AppLayout>
-      <Container fluid>
-        <Group justify="space-between" mb="xl">
+      <div className="space-y-7 pb-12">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <Title order={2}>Dashboard</Title>
-            <Text size="sm" c="dimmed">
-              Overview of your internship application pipeline
-            </Text>
+            <h1 className="font-display font-bold text-2xl sm:text-3xl text-[#17171A] tracking-tight">
+              Executive Dashboard
+            </h1>
+            <p className="text-sm text-[#7A7A82] mt-0.5">
+              Live telemetry, pipeline funnel conversion, and source tier telemetry.
+            </p>
           </div>
-        </Group>
-
-        {apiError && (
-          <Alert
-            icon={<AlertCircle size={16} />}
-            title="Backend API unavailable"
-            color="red"
-            mb="lg"
-            withCloseButton
-            onClose={() => {}}
-          >
-            {apiErrorMessage}
-          </Alert>
-        )}
-
-        <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} mb="xl">
-          {KPI_CARDS.map((kpi) => (
-            <Card
-              key={kpi.label}
-              withBorder
-              padding="lg"
-              radius="md"
-              shadow="sm"
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/internships"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#17171A] text-white rounded-full text-xs font-semibold shadow-sm hover:bg-[#2C2C30] transition-colors"
             >
-              <Group justify="space-between" mb="xs">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                  {kpi.label}
-                </Text>
-                <ThemeIcon variant="light" color={kpi.color} size="lg" radius="md">
-                  <kpi.icon size={18} />
-                </ThemeIcon>
-              </Group>
-              {statsLoading && kpi.label.startsWith("New") ? (
-                <Skeleton h={36} w={80} />
-              ) : (
-                <Group gap={6} align="end">
-                  <Text fw={700} size="xl" lh={1}>
-                    {kpi.value}{" "}
-                    {(kpi as unknown as Record<string, string>).suffix ?? ""}
-                  </Text>
-                  {kpi.hint && (
-                    <Text size="xs" c="dimmed">
-                      {kpi.hint}
-                    </Text>
-                  )}
-                </Group>
-              )}
-            </Card>
-          ))}
-        </SimpleGrid>
+              <span>View Kanban Board</span>
+              <ArrowUpRight size={14} />
+            </Link>
+          </div>
+        </div>
 
-        <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
-          <Box>
-            <Group justify="space-between" mb="md">
-              <Title order={4}>What Needs Attention</Title>
-              <Badge
-                variant="light"
-                color="blue"
-                style={{ cursor: "pointer" }}
-                onClick={() => router.push("/opportunities")}
-              >
-                View all
-              </Badge>
-            </Group>
+        {/* 1. KPI Metric Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Card 1: Total Opportunities */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+            className="eonix-card eonix-card-hover group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#7A7A82]">
+                Total Discovered
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#F4F4F5] flex items-center justify-center text-[#17171A] group-hover:bg-[#17171A] group-hover:text-white transition-colors">
+                <Briefcase size={16} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="font-display font-bold text-3xl sm:text-4xl text-[#17171A] tabular-nums">
+                {statsLoading ? "—" : stats?.total_opportunities ?? 0}
+              </span>
+              <span className="text-xs font-medium text-[#2BC7A0] bg-[#EAF9F5] px-2 py-0.5 rounded-full">
+                Active
+              </span>
+            </div>
+            <p className="text-xs text-[#7A7A82] mt-2">
+              Across all scrapers & active sources
+            </p>
+          </motion.div>
 
-            {oppsLoading ? (
-              <Stack gap="sm">
-                <Skeleton h={80} radius="md" />
-                <Skeleton h={80} radius="md" />
-                <Skeleton h={80} radius="md" />
-              </Stack>
-            ) : pendingItems.length === 0 ? (
-              <Paper withBorder p="xl" radius="md" ta="center" c="dimmed">
-                <CheckCircle2 size={36} style={{ margin: "0 auto 8px" }} />
-                <Text size="sm">Nothing needs attention right now!</Text>
-              </Paper>
-            ) : (
-              <Stack gap="sm">
-                {pendingItems.slice(0, 5).map((item) => {
-                  const Icon = STATUS_ICONS[item.status] ?? FileText;
-                  const color = STATUS_COLORS[item.status] ?? "gray";
-                  return (
-                    <Card
-                      key={item.id}
-                      withBorder
-                      padding="md"
-                      radius="md"
-                      style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        router.push(`/opportunities/${item.id}`)
-                      }
-                    >
-                      <Group justify="space-between" wrap="nowrap">
-                        <Group gap="sm" wrap="nowrap">
-                          <ThemeIcon variant="light" color={color} size="lg" radius="md">
-                            <Icon size={18} />
-                          </ThemeIcon>
-                          <div style={{ minWidth: 0 }}>
-                            <Text size="sm" fw={600} truncate>
-                              {item.company}
-                            </Text>
-                            <Text size="xs" c="dimmed" truncate>
-                              {item.role}
-                            </Text>
+          {/* Card 2: Pending Review */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+            className="eonix-card eonix-card-hover group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#7A7A82]">
+                Reviewing
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#F3EFFF] flex items-center justify-center text-[#7C5CFC] group-hover:bg-[#7C5CFC] group-hover:text-white transition-colors">
+                <Eye size={16} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="font-display font-bold text-3xl sm:text-4xl text-[#7C5CFC] tabular-nums">
+                {statsLoading ? "—" : stats?.pending_review ?? stats?.by_stage?.reviewing ?? 0}
+              </span>
+              <span className="text-xs font-medium text-[#7C5CFC] bg-[#F3EFFF] px-2 py-0.5 rounded-full">
+                Focus
+              </span>
+            </div>
+            <p className="text-xs text-[#7A7A82] mt-2">
+              Opportunities ready for resume tailoring
+            </p>
+          </motion.div>
+
+          {/* Card 3: Applied / Outreach */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+            className="eonix-card eonix-card-hover group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#7A7A82]">
+                Applied & Sent
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#FFF8E6] flex items-center justify-center text-[#B45309] group-hover:bg-[#FFC94A] group-hover:text-[#17171A] transition-colors">
+                <Send size={16} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="font-display font-bold text-3xl sm:text-4xl text-[#17171A] tabular-nums">
+                {statsLoading ? "—" : stats?.batch_ready ?? stats?.by_stage?.applied ?? 0}
+              </span>
+              <span className="text-xs font-medium text-[#B45309] bg-[#FFF8E6] px-2 py-0.5 rounded-full">
+                Sent
+              </span>
+            </div>
+            <p className="text-xs text-[#7A7A82] mt-2">
+              Applications submitted or emails dispatched
+            </p>
+          </motion.div>
+
+          {/* Card 4: Companies */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+            className="eonix-card eonix-card-hover group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#7A7A82]">
+                Target Companies
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-[#EFF4FE] flex items-center justify-center text-[#5B8DEF] group-hover:bg-[#5B8DEF] group-hover:text-white transition-colors">
+                <Building2 size={16} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="font-display font-bold text-3xl sm:text-4xl text-[#17171A] tabular-nums">
+                {statsLoading ? "—" : stats?.total_companies ?? 0}
+              </span>
+              <span className="text-xs font-medium text-[#5B8DEF] bg-[#EFF4FE] px-2 py-0.5 rounded-full">
+                Profiles
+              </span>
+            </div>
+            <p className="text-xs text-[#7A7A82] mt-2">
+              Aggregated organization dossiers
+            </p>
+          </motion.div>
+        </div>
+
+        {/* 2. Main Visual Charts Grid (Funnel & Source Tiers) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Pipeline Conversion Funnel (2 Cols) */}
+          <div className="lg:col-span-2 eonix-card relative">
+            {/* Eonix signature floating pill badge */}
+            <div className="eonix-floating-pill text-[#17171A] border border-[#EBEAE6]">
+              <Calendar size={13} className="text-[#7C5CFC]" />
+              <span>Pipeline · 2026</span>
+            </div>
+
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="font-display font-semibold text-base text-[#17171A]">
+                  Pipeline Stage Funnel
+                </h2>
+                <p className="text-xs text-[#7A7A82]">
+                  Opportunities grouped by Kanban status (capsule blobs, Reviewing hatched)
+                </p>
+              </div>
+            </div>
+
+            {/* Recharts Capsule Bar Chart */}
+            <div className="h-64 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={funnelData}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 20 }}
+                  barSize={38}
+                >
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#7A7A82", fontSize: 11, fontWeight: 500 }}
+                    dy={8}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "#7A7A82", fontSize: 11 }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "rgba(240, 239, 236, 0.4)", radius: 16 }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-[#17171A] text-white px-3.5 py-2 rounded-2xl shadow-xl text-xs space-y-0.5 border border-white/10">
+                            <p className="font-semibold text-white">{d.name}</p>
+                            <p className="text-[#A1A1AA] font-mono">
+                              Count: <span className="text-white font-bold">{d.count}</span>
+                            </p>
                           </div>
-                        </Group>
-                        <Group gap="xs" wrap="nowrap">
-                          <Badge
-                            variant="light"
-                            color={color}
-                            size="sm"
-                            tt="capitalize"
-                          >
-                            {item.status.replace(/_/g, " ")}
-                          </Badge>
-                          <ArrowRight size={14} />
-                        </Group>
-                      </Group>
-                    </Card>
-                  );
-                })}
-              </Stack>
-            )}
-          </Box>
-
-          <Box>
-            <Title order={4} mb="md">
-              Recent Activity
-            </Title>
-
-            {activityLoading ? (
-              <Stack gap="sm">
-                <Skeleton h={60} radius="md" />
-                <Skeleton h={60} radius="md" />
-                <Skeleton h={60} radius="md" />
-                <Skeleton h={60} radius="md" />
-              </Stack>
-            ) : (
-              <Stack gap="xs">
-                {activity?.map((act) => {
-                  const iconMap: Record<string, React.ElementType> = {
-                    application: Send,
-                    status_change: Clock,
-                    note: FileText,
-                    email: Mail,
-                  };
-                  const Icon = iconMap[act.type] ?? FileText;
-                  return (
-                    <Card
-                      key={act.id}
-                      withBorder
-                      padding="sm"
-                      radius="md"
-                      style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        router.push(`/opportunities/${act.opportunityId}`)
+                        );
                       }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="count"
+                    radius={[999, 999, 999, 999]}
+                    animationDuration={800}
+                  >
+                    {funnelData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Stage Quick Indicator Pills */}
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-4 pt-4 border-t border-[#F0EFEC]">
+              {funnelData.map((item) => {
+                const conf = STAGE_COLORS[item.name] || STAGE_COLORS.Discovered;
+                return (
+                  <div
+                    key={item.name}
+                    className="flex flex-col items-center justify-center p-2 rounded-2xl transition-transform hover:scale-105"
+                    style={{ backgroundColor: conf.tint }}
+                  >
+                    <span className="text-[11px] font-medium" style={{ color: conf.text }}>
+                      {item.name}
+                    </span>
+                    <span className="font-mono font-bold text-sm text-[#17171A]">
+                      {item.count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Opportunity Split Donut (1 Col) */}
+          <div className="eonix-card relative flex flex-col justify-between">
+            <div className="eonix-floating-pill text-[#17171A] border border-[#EBEAE6]">
+              <Sparkles size={13} className="text-[#2BC7A0]" />
+              <span>Track Distribution</span>
+            </div>
+
+            <div>
+              <h2 className="font-display font-semibold text-base text-[#17171A]">
+                Opportunity Distribution
+              </h2>
+              <p className="text-xs text-[#7A7A82]">
+                Internships vs Freelance feeds
+              </p>
+            </div>
+
+            <div className="relative h-48 w-full flex items-center justify-center my-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-[#17171A] text-white px-3 py-1.5 rounded-xl shadow-lg text-xs font-mono">
+                            {d.name}: {d.value}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Pie
+                    data={donutData}
+                    innerRadius={55}
+                    outerRadius={75}
+                    paddingAngle={6}
+                    dataKey="value"
+                    animationDuration={800}
+                  >
+                    {donutData.map((entry, index) => (
+                      <Cell key={`donut-cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="font-display font-bold text-2xl text-[#17171A] tabular-nums">
+                  {stats?.total_opportunities ?? 0}
+                </span>
+                <span className="text-[10px] uppercase font-semibold text-[#7A7A82] tracking-wider">
+                  Total
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-[#F0EFEC]">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#7C5CFC]" />
+                  <span className="font-medium text-[#17171A]">Internships</span>
+                </div>
+                <span className="font-mono font-semibold text-[#17171A]">
+                  {stats?.total_internships ?? (stats?.total_opportunities || 0)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#2BC7A0]" />
+                  <span className="font-medium text-[#17171A]">Freelance</span>
+                </div>
+                <span className="font-mono font-semibold text-[#17171A]">
+                  {stats?.total_freelance ?? 0}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Source Tier Breakdown & Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Source Tier Breakdown (2 Cols) */}
+          <div className="lg:col-span-2 eonix-card relative">
+            <div className="eonix-floating-pill text-[#17171A] border border-[#EBEAE6]">
+              <Layers size={13} className="text-[#5B8DEF]" />
+              <span>Multi-Source Health</span>
+            </div>
+
+            <div className="mb-4">
+              <h2 className="font-display font-semibold text-base text-[#17171A]">
+                Source Tier Breakdown
+              </h2>
+              <p className="text-xs text-[#7A7A82]">
+                Telemetry from ATS scrapers, portals, aggregators, and free RSS feeds
+              </p>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              {tierData.map((item) => (
+                <div key={item.tier} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-[#17171A]">{item.tier}</span>
+                      <span className="text-[#7A7A82] ml-2 text-[11px] hidden sm:inline">
+                        ({item.desc})
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 font-mono">
+                      <span className="text-[#7A7A82]">{item.count} items</span>
+                      <span className="font-bold text-[#17171A] bg-[#F4F4F5] px-2 py-0.5 rounded-full text-[11px]">
+                        {item.pct}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Capsule Progress Bar */}
+                  <div className="h-3.5 w-full bg-[#F0EFEC] rounded-full overflow-hidden p-0.5">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(item.pct, item.count > 0 ? 5 : 0)}%` }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="h-full rounded-full"
+                      style={{
+                        backgroundColor: item.hatch ? undefined : item.color,
+                        backgroundImage: item.hatch ? "url(#hatchPatternPurple)" : undefined,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Active Sources Chips */}
+            <div className="mt-6 pt-4 border-t border-[#F0EFEC] flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold text-[#7A7A82]">Scraper feeds:</span>
+              {stats?.by_source && Object.keys(stats.by_source).length > 0 ? (
+                Object.entries(stats.by_source).map(([src, count]) => (
+                  <span
+                    key={src}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFFFFF] border border-[#EBEAE6] text-xs font-medium text-[#17171A] shadow-2xs"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2BC7A0]" />
+                    <span className="capitalize">{src}</span>
+                    <span className="font-mono text-[#7A7A82] text-[11px]">({count})</span>
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-[#7A7A82] italic">Waiting for discovery scan</span>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Activity Feed (1 Col) */}
+          <div className="eonix-card relative flex flex-col">
+            <div className="eonix-floating-pill text-[#17171A] border border-[#EBEAE6]">
+              <Clock size={13} className="text-[#FF6B57]" />
+              <span>Realtime Feed</span>
+            </div>
+
+            <div className="mb-3">
+              <h2 className="font-display font-semibold text-base text-[#17171A]">
+                Recent Activity
+              </h2>
+              <p className="text-xs text-[#7A7A82]">
+                Live opportunity discoveries & events
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto max-h-[320px] space-y-3 pr-1">
+              {activityLoading ? (
+                <div className="py-8 text-center text-xs text-[#7A7A82]">Loading activity stream...</div>
+              ) : !activities || activities.length === 0 ? (
+                <div className="py-8 text-center text-xs text-[#7A7A82]">
+                  No recent activity recorded yet.
+                </div>
+              ) : (
+                activities.map((act) => {
+                  const stageName = act.stage ? act.stage.charAt(0).toUpperCase() + act.stage.slice(1) : "Discovered";
+                  const stageConf = STAGE_COLORS[stageName] || STAGE_COLORS.Discovered;
+
+                  return (
+                    <div
+                      key={act.id}
+                      className="p-3 rounded-2xl bg-[#FBFBFA] border border-[#EBEAE6] transition-all hover:bg-white hover:shadow-xs group"
                     >
-                      <Group gap="sm" wrap="nowrap">
-                        <ThemeIcon variant="light" color="gray" size="sm" radius="xl">
-                          <Icon size={12} />
-                        </ThemeIcon>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <Text size="sm" truncate>
-                            {act.message}
-                          </Text>
-                        </div>
-                        <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap" }}>
-                          {getTimeAgo(act.timestamp)}
-                        </Text>
-                      </Group>
-                    </Card>
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
+                          style={{ backgroundColor: stageConf.tint, color: stageConf.text }}
+                        >
+                          {stageName}
+                        </span>
+                        <span className="font-mono text-[11px] text-[#7A7A82]">
+                          {act.timestamp ? act.timestamp.slice(11, 16) || "Just now" : "Recent"}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-[#17171A] mt-1.5 line-clamp-1">
+                        {act.message}
+                      </p>
+                      <div className="flex items-center justify-between mt-2 pt-1 border-t border-[#F0EFEC]/60">
+                        <span className="text-[10px] text-[#7A7A82] uppercase font-mono">
+                          {act.source || "Web"}
+                        </span>
+                        <Link
+                          href={`/opportunities/${act.opportunityId}`}
+                          className="text-[11px] font-semibold text-[#7C5CFC] flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform"
+                        >
+                          <span>Inspect</span>
+                          <ChevronRight size={12} />
+                        </Link>
+                      </div>
+                    </div>
                   );
-                })}
-              </Stack>
-            )}
-          </Box>
-        </SimpleGrid>
-      </Container>
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </AppLayout>
   );
 }

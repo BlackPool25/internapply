@@ -1,193 +1,110 @@
-export type ApplicationStatus =
-  | "saved"
+export type ApplicationStage =
+  | "discovered"
+  | "reviewing"
   | "applied"
-  | "pending_review"
-  | "batch_ready"
-  | "interview_scheduled"
-  | "rejected"
+  | "interviewing"
   | "offer"
-  | "accepted";
+  | "rejected"
+  | "ongoing"
+  | "closed"
+  | "cancelled";
 
-export type ApplicationSource =
-  | "LinkedIn"
-  | "Internshala"
-  | "HackerNews"
-  | "Seed"
-  | "Company Website"
-  | "Referral"
-  | "Other";
-
-// Extended source_ats values used by backend + new freelance sources
-export type SourceATS =
-  | "ATS"
-  | "greenhouse"
-  | "lever"
-  | "ashby"
-  | "workday"
-  | "smartrecruiters"
-  | "hirist"
-  | "Hirist"
-  | "unstop"
-  | "Unstop"
-  | "internshala"
-  | "Internshala"
-  | "jobspy"
-  | "JobSpy"
-  | "linkedin"
-  | "LinkedIn"
-  | "freelance"
-  | "Freelancer"
-  | "arbeitnow"
-  | "Arbeitnow"
-  | "internshala_freelance"
-  | "upwork"
-  | "Upwork"
-  | "999"
-  | string;
-
-export type DriftKind = "new" | "changed" | "gone" | null;
-
-export interface ChangeLogEntry {
-  status?: DriftKind;
-  kind?: DriftKind;
-  changed_at?: string;
-  jd_hash?: string;
-  prev_hash?: string;
-}
+export type SourceType = "internship" | "freelance";
 
 export interface Opportunity {
   id: string;
   canonical_id?: string;
+  jd_hash?: string;
   company: string;
   companyLogo?: string;
   role: string;
-  title?: string;
-  source: ApplicationSource | string;
-  source_ats?: SourceATS;
-  source_ats_label?: string;
-  status: ApplicationStatus;
-  contactName: string;
-  contactEmail: string;
-  matchScore: number; // 0-100
+  source: string;
+  source_type: SourceType;
+  tier: string;
+  status: ApplicationStage | string;
+  stage: ApplicationStage | string;
+  contactName?: string;
+  contactEmail?: string;
+  matchScore: number;
   verifier_score?: number | null;
-  tier?: string | null;
-  stipend?: number | null;
-  stipend_gte?: number | null;
-  remote?: boolean | null;
+  date: string;
+  created_at?: string;
   location: string;
   salary?: string;
+  stipend_min?: number | null;
+  stipend_max?: number | null;
+  stipend_raw?: string | null;
+  is_paid?: boolean;
+  is_remote?: boolean;
   jobUrl?: string;
-  url?: string;
   notes?: string;
-  posted_at?: string;
-  date: string; // ISO date
-  drift?: DriftKind;
-  change_log?: ChangeLogEntry | Record<string, unknown> | null;
-  // Detail-only fields
+  skills?: string[];
   companyDescription?: string;
   companySize?: string;
   industry?: string;
   researchSummary?: string;
-  people?: CompanyContact[];
-  resume?: ResumeVersion;
-  coverEmail?: CoverEmailVersion;
-}
-
-export interface CompanyContact {
-  name: string;
-  role: string;
-  profileUrl?: string;
-}
-
-export interface ResumeVersion {
-  id: string;
-  filename: string;
-  content: string;
-  uploadedAt: string;
-}
-
-export interface CoverEmailVersion {
-  id: string;
-  subject: string;
-  body: string;
-  status: "draft" | "approved" | "sent";
+  coverEmail?: {
+    id?: string;
+    subject?: string;
+    body: string;
+    status?: string;
+  };
 }
 
 export interface Activity {
   id: string;
-  type: "application" | "status_change" | "note" | "email";
+  type: string;
+  stage?: string;
   message: string;
+  source?: string;
   timestamp: string;
   opportunityId: string;
 }
 
 export interface DashboardStats {
-  totalOpportunities: number;
-  pendingReview: number;
-  batchReady: number;
-  emailsToSend: number;
-  // extended KPIs
-  newToday?: number;
-  changedJds?: number;
-  workingBoards?: number;
-  jdHashHitPct?: number;
-}
-
-export interface FreelanceOpportunity {
-  id: string;
-  title: string;
-  company?: string;
-  source_ats: string;
-  url?: string;
-  location?: string;
-  budget?: string;
-  posted_at?: string;
-  description?: string;
-}
-
-// ── Company types ──────────────────────────────────────
-
-export type FundingStage =
-  | "Bootstrapped"
-  | "Pre-seed"
-  | "Seed"
-  | "Series A"
-  | "Series B"
-  | "Series C"
-  | "Series D"
-  | "Series E"
-  | "Series F"
-  | "Public";
-
-export interface CompanyPerson {
-  name: string;
-  role: string;
-  email?: string;
-  emailStatus?: "found" | "verified" | "not_found";
-  source?: string;
-  profileUrl?: string;
-}
-
-export interface NewsItem {
-  title: string;
-  url?: string;
-  date: string;
+  total_opportunities: number;
+  total_companies: number;
+  pending_review: number;
+  batch_ready: number;
+  total_internships?: number;
+  total_freelance?: number;
+  by_stage?: {
+    discovered: number;
+    reviewing: number;
+    applied: number;
+    interviewing: number;
+    offer: number;
+    rejected: number;
+    [key: string]: number;
+  };
+  by_source_tier?: {
+    "Tier 0 (ATS)": number;
+    "Tier 1 (Portals)": number;
+    "Tier 2 (Aggregators)": number;
+    "Tier 3 (APIs & RSS)": number;
+    [key: string]: number;
+  };
+  by_source?: Record<string, number>;
 }
 
 export interface Company {
   id: string;
   name: string;
-  domain: string;
-  description: string;
-  techStack: string[];
-  fundingStage: FundingStage;
-  fundingAmount?: string;
-  foundedYear?: number;
-  location?: string;
-  employees?: string;
-  industry?: string;
-  people: CompanyPerson[];
-  recentNews: NewsItem[];
-  researchNotes?: string;
-  linkedOpportunityIds: string[];
+  domain?: string | null;
+  description?: string | null;
+  tech_stack?: string[] | null;
+  funding_stage?: string | null;
+  funding_total?: string | null;
+  recent_news?: Array<{ title?: string; url?: string; date?: string }> | null;
+  culture_data?: Record<string, unknown> | null;
+  research_notes?: string | null;
+  source?: string;
+  created_at?: string;
+}
+
+export interface VerifierReport {
+  passed: boolean;
+  score: number;
+  violations: Array<string | { check: string; detail: string }>;
+  warnings: Array<string | { check: string; detail: string }>;
 }

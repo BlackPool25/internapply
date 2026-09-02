@@ -1,24 +1,8 @@
 "use client";
 
 import { use, useState } from "react";
-import {
-  Container,
-  Grid,
-  Card,
-  Group,
-  Text,
-  Title,
-  Badge,
-  Button,
-  Stack,
-  Skeleton,
-  ThemeIcon,
-  Paper,
-  Anchor,
-  ActionIcon,
-  Alert,
-  CopyButton,
-} from "@mantine/core";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -28,79 +12,32 @@ import {
   Users,
   FileText,
   Mail,
-  Plus,
   ExternalLink,
-  Edit3,
-  Eye,
-  Send,
-  Linkedin,
-  Briefcase,
   Sparkles,
-  Loader2,
-  Check,
+  CheckCircle2,
+  AlertCircle,
   Copy,
-  AlertTriangle,
+  Check,
+  ShieldCheck,
+  Layers,
+  Calendar,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { AppLayout } from "@/components/AppLayout";
 import {
   useOpportunity,
+  useUpdateOpportunityStage,
   useTailorResume,
   useCoverLetter,
-  getVerifierState,
 } from "@/lib/api";
-import { AppLayout } from "@/components/AppLayout";
-import { notifications } from "@mantine/notifications";
 
-const STATUS_COLORS: Record<string, string> = {
-  saved: "gray",
-  applied: "blue",
-  pending_review: "yellow",
-  batch_ready: "teal",
-  interview_scheduled: "violet",
-  rejected: "red",
-  offer: "green",
-  accepted: "emerald",
+const STAGE_CONFIG: Record<string, { label: string; tint: string; text: string; bg: string }> = {
+  discovered: { label: "Discovered", tint: "#F4F4F5", text: "#52525B", bg: "#7A7A82" },
+  reviewing: { label: "Reviewing", tint: "#F3EFFF", text: "#7C5CFC", bg: "#7C5CFC" },
+  applied: { label: "Applied", tint: "#FFF8E6", text: "#B45309", bg: "#FFC94A" },
+  interviewing: { label: "Interviewing", tint: "#EFF4FE", text: "#2563EB", bg: "#5B8DEF" },
+  offer: { label: "Offer", tint: "#EAF9F5", text: "#059669", bg: "#2BC7A0" },
+  rejected: { label: "Rejected", tint: "#FFF0EE", text: "#DC2626", bg: "#FF6B57" },
 };
-
-function DetailSkeleton() {
-  return (
-    <Container fluid>
-      <Skeleton h={20} w={120} mb="lg" />
-      <Grid>
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Skeleton h={400} radius="md" />
-        </Grid.Col>
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Skeleton h={400} radius="md" />
-        </Grid.Col>
-      </Grid>
-    </Container>
-  );
-}
-
-function OpportunityNotFound() {
-  const router = useRouter();
-  return (
-    <Container fluid>
-      <Button
-        variant="subtle"
-        leftSection={<ArrowLeft size={16} />}
-        onClick={() => router.push("/opportunities")}
-        mb="lg"
-      >
-        Back to opportunities
-      </Button>
-      <Paper withBorder p="xl" radius="md" ta="center">
-        <Text size="lg" fw={600} mb="sm">
-          Opportunity not found
-        </Text>
-        <Text size="sm" c="dimmed">
-          The opportunity you&apos;re looking for doesn&apos;t exist or has been removed.
-        </Text>
-      </Paper>
-    </Container>
-  );
-}
 
 export default function OpportunityDetailPage({
   params,
@@ -109,587 +46,352 @@ export default function OpportunityDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const { data: opportunity, isLoading, isError, error } = useOpportunity(id);
+  const { data: opportunity, isLoading, error } = useOpportunity(id);
+  const updateStageMutation = useUpdateOpportunityStage();
 
-  // ── Outreach generation state ──
+  // Outreach generation state
   const tailorMutation = useTailorResume();
   const coverLetterMutation = useCoverLetter();
-  const [tailoredSummary, setTailoredSummary] = useState<string | null>(null);
-  const [generatedSubject, setGeneratedSubject] = useState<string>("");
-  const [generatedBody, setGeneratedBody] = useState<string>("");
-  const [verifierScore, setVerifierScore] = useState<number | null>(null);
+  const [tailoredData, setTailoredData] = useState<any>(null);
+  const [coverLetter, setCoverLetter] = useState<string>("");
+  const [copied, setCopied] = useState(false);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
-  const handleGenerateOutreach = () => {
-    const jobTitle = opportunity?.role ?? "";
-    const company = opportunity?.company ?? "";
-    const jobDescription =
-      opportunity?.researchSummary ?? opportunity?.notes ?? "";
-    const contactName = opportunity?.contactName ?? "";
-    const canonical_id = (opportunity as unknown as Record<string, unknown>)?.canonical_id as string | undefined ?? opportunity?.id ?? id;
-
-    // Step 1: Tailor the resume via skill (POST /api/v1/resume/tailor) with canonical_id
-    tailorMutation.mutate(
-      { job_title: jobTitle, company, job_description: jobDescription, canonical_id },
-      {
-        onSuccess: (tailorData) => {
-          setTailoredSummary(tailorData.summary);
-          const score = tailorData.verifier_score ?? null;
-          setVerifierScore(score);
-          const state = getVerifierState(score);
-          // WARN 70-79 yellow not blocked, success green, error red
-          if (state === "warn") {
-            notifications.show({
-              title: "WARN: verifier 70-79",
-              message: `Tailored with warnings (score: ${score}). Review before sending.`,
-              color: "yellow",
-            });
-          } else if (state === "success") {
-            notifications.show({
-              title: "Resume tailored",
-              message: `Verifier score: ${score}/100`,
-              color: "green",
-            });
-          } else if (score !== null && score < 70) {
-            notifications.show({
-              title: "Verifier low",
-              message: `Score ${score} — needs review but not blocked (only <60 would retry).`,
-              color: "red",
-            });
-          }
-
-          // Step 2: Generate cover letter
-          coverLetterMutation.mutate(
-            {
-              title: jobTitle,
-              company,
-              jd_summary: jobDescription || "No description available.",
-              top_skills: tailorData.skills_reordered,
-              summary: tailorData.summary,
-              name: contactName,
-            },
-            {
-              onSuccess: (clData) => {
-                setGeneratedSubject(
-                  `Application for ${jobTitle} Position`,
-                );
-                setGeneratedBody(clData.letter);
-                notifications.show({
-                  title: "Outreach generated",
-                  message: `Cover letter ready (score: ${clData.humanization_score}/100)`,
-                  color: "green",
-                });
-              },
-              onError: (err) => {
-                notifications.show({
-                  title: "Cover letter failed",
-                  message:
-                    err instanceof Error ? err.message : "Unknown error",
-                  color: "red",
-                });
-              },
-            },
-          );
-        },
-        onError: (err) => {
-          notifications.show({
-            title: "Resume tailoring failed",
-            message: err instanceof Error ? err.message : "Unknown error",
-            color: "red",
-          });
-        },
-      },
-    );
+  const handleStageChange = async (newStage: string) => {
+    try {
+      await updateStageMutation.mutateAsync({ id, stage: newStage });
+      setActionSuccess(`Stage updated to ${newStage}`);
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch {
+      // handled
+    }
   };
 
-  const isGenerating = tailorMutation.isPending || coverLetterMutation.isPending;
-  const hasGenerated = tailoredSummary !== null || generatedBody !== "";
+  const handleGenerateTailoredOutreach = async () => {
+    if (!opportunity) return;
+    try {
+      const tailorRes = await tailorMutation.mutateAsync({
+        job_title: opportunity.role,
+        company: opportunity.company,
+        job_description: opportunity.companyDescription || opportunity.researchSummary || opportunity.notes || opportunity.role,
+      });
+      setTailoredData(tailorRes);
+
+      const clRes = await coverLetterMutation.mutateAsync({
+        title: opportunity.role,
+        company: opportunity.company,
+        jd_summary: opportunity.companyDescription || opportunity.role,
+        top_skills: tailorRes.skills_reordered || [],
+        summary: tailorRes.summary || "",
+        name: opportunity.contactName || "Hiring Team",
+      });
+      setCoverLetter(clRes.letter);
+      setActionSuccess("Tailored resume & cover letter generated!");
+      setTimeout(() => setActionSuccess(null), 3000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (isLoading) {
     return (
       <AppLayout>
-        <DetailSkeleton />
+        <div className="py-24 text-center">
+          <div className="w-8 h-8 border-3 border-[#7C5CFC] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-xs text-[#7A7A82] font-mono">Loading opportunity details...</p>
+        </div>
       </AppLayout>
     );
   }
 
-  if (isError) {
+  if (error || !opportunity) {
     return (
       <AppLayout>
-        <Container fluid>
-          <Button
-            variant="subtle"
-            leftSection={<ArrowLeft size={16} />}
-            onClick={() => router.push("/opportunities")}
-            mb="lg"
-          >
-            Back to opportunities
-          </Button>
-          <Alert
-            icon={<AlertTriangle size={16} />}
-            title="Failed to load opportunity"
-            color="red"
-          >
-            {error instanceof Error
-              ? error.message
-              : "Backend API is not available. Start the Docker containers first."}
-          </Alert>
-        </Container>
+        <div className="max-w-xl mx-auto py-16 text-center">
+          <div className="eonix-card">
+            <AlertCircle size={32} className="text-red-500 mx-auto mb-3" />
+            <h2 className="font-display font-bold text-lg text-[#17171A]">
+              Opportunity Not Found
+            </h2>
+            <p className="text-xs text-[#7A7A82] mt-1 mb-6">
+              The opportunity with ID #{id} could not be retrieved from the database.
+            </p>
+            <Link
+              href="/internships"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#17171A] text-white rounded-full text-xs font-semibold"
+            >
+              <ArrowLeft size={14} />
+              <span>Back to Pipeline</span>
+            </Link>
+          </div>
+        </div>
       </AppLayout>
     );
   }
 
-  if (!opportunity) {
-    return (
-      <AppLayout>
-        <OpportunityNotFound />
-      </AppLayout>
-    );
-  }
+  const currentStage = (opportunity.stage || opportunity.status || "discovered").toLowerCase();
+  const stageConf = STAGE_CONFIG[currentStage] || STAGE_CONFIG.discovered;
 
   return (
     <AppLayout>
-      <Container fluid>
-        {/* Back button */}
-        <Button
-          variant="subtle"
-          leftSection={<ArrowLeft size={16} />}
-          onClick={() => router.push("/opportunities")}
-          mb="lg"
-        >
-          Back to opportunities
-        </Button>
+      <div className="space-y-6 pb-12">
+        {/* Toast */}
+        {actionSuccess && (
+          <div className="fixed bottom-6 right-6 z-50 bg-[#17171A] text-white px-4 py-2.5 rounded-full text-xs font-semibold shadow-2xl flex items-center gap-2 border border-white/10 animate-bounce">
+            <CheckCircle2 size={14} className="text-[#2BC7A0]" />
+            <span>{actionSuccess}</span>
+          </div>
+        )}
 
-        {/* Header card */}
-        <Card withBorder padding="lg" radius="md" mb="lg">
-          <Group justify="space-between" align="flex-start">
-            <Group gap="lg">
-              <ThemeIcon
-                size={56}
-                radius="md"
-                variant="light"
-                color="blue"
-              >
-                <Building2 size={28} />
-              </ThemeIcon>
-              <div>
-                <Group gap="sm" mb={4}>
-                  <Title order={3}>{opportunity.company}</Title>
-                  <Badge
-                    variant="light"
-                    color={STATUS_COLORS[opportunity.status] ?? "gray"}
-                    size="lg"
-                    tt="capitalize"
-                  >
-                    {opportunity.status.replace(/_/g, " ")}
-                  </Badge>
-                </Group>
-                <Text size="lg" c="dimmed">
-                  {opportunity.role}
-                </Text>
-                <Group gap="md" mt="sm">
-                  <Group gap={4}>
-                    <MapPin size={14} />
-                    <Text size="sm" c="dimmed">
-                      {opportunity.location}
-                    </Text>
-                  </Group>
-                  {opportunity.salary && (
-                    <Group gap={4}>
-                      <DollarSign size={14} />
-                      <Text size="sm" c="dimmed">
-                        {opportunity.salary}
-                      </Text>
-                    </Group>
-                  )}
-                  <Group gap={4}>
-                    <ThemeIcon
-                      variant="light"
-                      color={
-                        opportunity.matchScore >= 85
-                          ? "green"
-                          : opportunity.matchScore >= 70
-                            ? "yellow"
-                            : "red"
-                      }
-                      size="sm"
-                      radius="xl"
-                    >
-                      <Briefcase size={10} />
-                    </ThemeIcon>
-                    <Text size="sm" fw={500}>
-                      {opportunity.matchScore}% match
-                    </Text>
-                  </Group>
-                </Group>
+        {/* Back navigation */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/internships"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#7A7A82] hover:text-[#17171A] transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Back to Opportunities</span>
+          </Link>
+
+          <div className="flex items-center gap-2 font-mono text-xs text-[#7A7A82]">
+            <span>ID:</span>
+            <span className="bg-white px-2 py-0.5 rounded-md border border-[#EBEAE6]">
+              {opportunity.canonical_id ? opportunity.canonical_id.slice(0, 10) : `#${opportunity.id}`}
+            </span>
+          </div>
+        </div>
+
+        {/* Hero Card */}
+        <div className="eonix-card relative">
+          <div className="eonix-floating-pill text-[#17171A] border border-[#EBEAE6]">
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ backgroundColor: stageConf.bg }}
+            />
+            <span className="capitalize">{stageConf.label}</span>
+          </div>
+
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#17171A] text-white flex items-center justify-center font-display font-bold text-xl shadow-md">
+                  {opportunity.company.slice(0, 1).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="font-display font-bold text-xs uppercase tracking-wider text-[#7A7A82]">
+                    {opportunity.company}
+                  </h2>
+                  <h1 className="font-display font-bold text-xl sm:text-2xl text-[#17171A] tracking-tight">
+                    {opportunity.role}
+                  </h1>
+                </div>
               </div>
-            </Group>
 
-            <Group gap="xs">
+              {/* Meta Pills */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F4F4F5] text-xs font-medium text-[#17171A]">
+                  <MapPin size={12} className="text-[#7A7A82]" />
+                  <span>{opportunity.location || "Remote"}</span>
+                </span>
+
+                {opportunity.salary && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#F4F4F5] text-xs font-mono font-semibold text-[#17171A]">
+                    <DollarSign size={12} className="text-[#2BC7A0]" />
+                    <span>{opportunity.salary}</span>
+                  </span>
+                )}
+
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-[#EBEAE6] text-xs font-medium text-[#17171A]">
+                  <Layers size={12} className="text-[#7C5CFC]" />
+                  <span className="capitalize">{opportunity.source || "Web"}</span>
+                  <span className="text-[#7A7A82] text-[10px]">({opportunity.tier})</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Stage Action Cluster */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
               {opportunity.jobUrl && (
-                <Button
-                  variant="light"
-                  rightSection={<ExternalLink size={14} />}
-                  component="a"
+                <a
                   href={opportunity.jobUrl}
                   target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white rounded-full text-xs font-semibold text-[#17171A] border border-[#EBEAE6] hover:bg-[#F5F4F0] shadow-xs transition-colors"
                 >
-                  View Job
-                </Button>
+                  <ExternalLink size={13} />
+                  <span>Source URL</span>
+                </a>
               )}
-              <Button
-                variant="filled"
-                color={hasGenerated ? "green" : "blue"}
-                leftSection={
-                  isGenerating ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Sparkles size={14} />
-                  )
-                }
-                onClick={handleGenerateOutreach}
-                loading={isGenerating}
+
+              <button
+                onClick={handleGenerateTailoredOutreach}
+                disabled={tailorMutation.isPending || coverLetterMutation.isPending}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#7C5CFC] text-white rounded-full text-xs font-semibold shadow-md hover:bg-[#6847E8] transition-colors disabled:opacity-60"
               >
-                {isGenerating
-                  ? "Generating…"
-                  : hasGenerated
-                    ? "Regenerate Outreach"
-                    : "Generate Outreach"}
-              </Button>
-            </Group>
-          </Group>
-        </Card>
-
-        {/* Two-column layout */}
-        <Grid>
-          {/* Left column — Job & Company Details */}
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Stack gap="md">
-              {/* Company description */}
-              {opportunity.companyDescription && (
-                <Card withBorder padding="lg" radius="md">
-                  <Group gap="sm" mb="sm">
-                    <Building2 size={18} />
-                    <Title order={5}>About {opportunity.company}</Title>
-                  </Group>
-                  <Text size="sm" c="dimmed" lh={1.7}>
-                    {opportunity.companyDescription}
-                  </Text>
-                  <Group gap="lg" mt="md">
-                    {opportunity.industry && (
-                      <div>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          Industry
-                        </Text>
-                        <Text size="sm">{opportunity.industry}</Text>
-                      </div>
-                    )}
-                    {opportunity.companySize && (
-                      <div>
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                          Company Size
-                        </Text>
-                        <Text size="sm">{opportunity.companySize}</Text>
-                      </div>
-                    )}
-                  </Group>
-                </Card>
-              )}
-
-              {/* Contact */}
-              <Card withBorder padding="lg" radius="md">
-                <Group gap="sm" mb="sm">
-                  <Users size={18} />
-                  <Title order={5}>Contact</Title>
-                </Group>
-                <Group gap="sm">
-                  <ThemeIcon variant="light" color="blue" size="lg" radius="xl">
-                    <Text fw={600}>
-                      {opportunity.contactName
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </Text>
-                  </ThemeIcon>
-                  <div>
-                    <Text size="sm" fw={500}>
-                      {opportunity.contactName}
-                    </Text>
-                    <Anchor
-                      href={`mailto:${opportunity.contactEmail}`}
-                      size="sm"
-                    >
-                      {opportunity.contactEmail}
-                    </Anchor>
-                  </div>
-                </Group>
-              </Card>
-
-              {/* Notes */}
-              {opportunity.notes && (
-                <Card withBorder padding="lg" radius="md">
-                  <Group gap="sm" mb="sm">
-                    <FileText size={18} />
-                    <Title order={5}>Notes</Title>
-                  </Group>
-                  <Text size="sm" c="dimmed" lh={1.7}>
-                    {opportunity.notes}
-                  </Text>
-                </Card>
-              )}
-            </Stack>
-          </Grid.Col>
-
-          {/* Right column — Research Summary */}
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Stack gap="md">
-              {opportunity.researchSummary && (
-                <Card withBorder padding="lg" radius="md">
-                  <Group gap="sm" mb="sm">
-                    <Globe size={18} />
-                    <Title order={5}>Company Research</Title>
-                  </Group>
-                  <Text size="sm" c="dimmed" lh={1.7}>
-                    {opportunity.researchSummary}
-                  </Text>
-                </Card>
-              )}
-
-              {/* People found */}
-              {opportunity.people && opportunity.people.length > 0 && (
-                <Card withBorder padding="lg" radius="md">
-                  <Group gap="sm" mb="md">
-                    <Users size={18} />
-                    <Title order={5}>
-                      People at {opportunity.company}
-                    </Title>
-                  </Group>
-                  <Stack gap="sm">
-                    {opportunity.people.map((person, idx) => (
-                      <Group key={idx} gap="sm">
-                        <ThemeIcon
-                          variant="light"
-                          color="violet"
-                          size="md"
-                          radius="xl"
-                        >
-                          <Text fw={600} size="xs">
-                            {person.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </Text>
-                        </ThemeIcon>
-                        <div style={{ flex: 1 }}>
-                          <Text size="sm" fw={500}>
-                            {person.name}
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            {person.role}
-                          </Text>
-                        </div>
-                        {person.profileUrl && (
-                          <ActionIcon
-                            variant="subtle"
-                            color="blue"
-                            component="a"
-                            href={person.profileUrl}
-                            target="_blank"
-                          >
-                            <Linkedin size={14} />
-                          </ActionIcon>
-                        )}
-                      </Group>
-                    ))}
-                  </Stack>
-                </Card>
-              )}
-            </Stack>
-          </Grid.Col>
-        </Grid>
-
-        {/* Resume & Cover sections */}
-        <Grid mt="md">
-          {/* Resume section */}
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Card withBorder padding="lg" radius="md">
-              <Group justify="space-between" mb="sm">
-                <Group gap="sm">
-                  <FileText size={18} />
-                  <Title order={5}>Resume</Title>
-                </Group>
-                {opportunity.resume && (
-                  <Group gap="xs">
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      leftSection={<Eye size={12} />}
-                    >
-                      Preview
-                    </Button>
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      leftSection={<Edit3 size={12} />}
-                    >
-                      Edit
-                    </Button>
-                  </Group>
+                {tailorMutation.isPending || coverLetterMutation.isPending ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Sparkles size={14} />
                 )}
-              </Group>
-              {tailoredSummary ? (
-                <div>
-                    <Group gap="xs" mb="xs">
-                      <Badge size="sm" variant="light" color="blue">
-                        AI Tailored
-                      </Badge>
-                      {verifierScore !== null && (
-                        <Badge
-                          size="sm"
-                          variant="light"
-                          color={getVerifierState(verifierScore) === "success" ? "green" : getVerifierState(verifierScore) === "warn" ? "yellow" : "red"}
-                        >
-                          {getVerifierState(verifierScore) === "warn" ? `WARN ${verifierScore}` : `${verifierScore}%`}
-                        </Badge>
-                      )}
-                    </Group>
-                   <Text size="sm" style={{ whiteSpace: "pre-wrap" }} lh={1.6}>
-                     {tailoredSummary}
-                   </Text>
-                </div>
-              ) : opportunity.resume ? (
-                <div>
-                  <Group gap="xs" mb="xs">
-                    <ThemeIcon variant="light" color="gray" size="sm" radius="sm">
-                      <FileText size={12} />
-                    </ThemeIcon>
-                    <Text size="sm">{opportunity.resume.filename}</Text>
-                    <Badge size="sm" variant="dot" color="green">
-                      Uploaded{" "}
-                      {new Date(
-                        opportunity.resume.uploadedAt
-                      ).toLocaleDateString()}
-                    </Badge>
-                  </Group>
-                  <Text size="xs" c="dimmed" lh={1.6}>
-                    {opportunity.resume.content}
-                  </Text>
-                </div>
-              ) : (
-                <Button variant="light" fullWidth leftSection={<Plus size={14} />}>
-                  Upload Resume
-                </Button>
-              )}
-            </Card>
-          </Grid.Col>
+                <span>Tailor Resume & Outreach</span>
+              </button>
+            </div>
+          </div>
 
-          {/* Cover email section */}
-          <Grid.Col span={{ base: 12, md: 6 }}>
-            <Card withBorder padding="lg" radius="md">
-              <Group justify="space-between" mb="sm">
-                <Group gap="sm">
-                  <Mail size={18} />
-                  <Title order={5}>Cover Email</Title>
-                </Group>
-                {opportunity.coverEmail && (
-                  <Group gap="xs">
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      leftSection={<Eye size={12} />}
-                    >
-                      Preview
-                    </Button>
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      leftSection={<Edit3 size={12} />}
-                    >
-                      Edit
-                    </Button>
-                    {opportunity.coverEmail.status === "approved" && (
-                      <Button
-                        size="compact-sm"
-                        variant="filled"
-                        color="green"
-                        leftSection={<Send size={12} />}
+          {/* Quick Stage Progression Row */}
+          <div className="mt-6 pt-5 border-t border-[#F0EFEC] flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-[#7A7A82] mr-1">Move to:</span>
+            {Object.keys(STAGE_CONFIG).map((stg) => {
+              const conf = STAGE_CONFIG[stg];
+              const isSelected = currentStage === stg;
+              return (
+                <button
+                  key={stg}
+                  onClick={() => handleStageChange(stg)}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                    isSelected
+                      ? "bg-[#17171A] text-white shadow-xs"
+                      : "bg-[#F4F4F5] text-[#7A7A82] hover:text-[#17171A] hover:bg-[#EAE9E5]"
+                  }`}
+                >
+                  {conf.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 2-Column Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column: Job Description & Skills (2 Cols) */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Job Description Card */}
+            <div className="eonix-card">
+              <h3 className="font-display font-semibold text-base text-[#17171A] mb-3">
+                Job Overview & Details
+              </h3>
+              <div className="prose prose-sm text-xs text-[#52525B] max-w-none whitespace-pre-line leading-relaxed max-h-[420px] overflow-y-auto pr-2">
+                {opportunity.companyDescription ||
+                  opportunity.researchSummary ||
+                  "No detailed job description captured for this opportunity."}
+              </div>
+
+              {/* Skills Tags */}
+              {opportunity.skills && opportunity.skills.length > 0 && (
+                <div className="mt-6 pt-4 border-t border-[#F0EFEC]">
+                  <h4 className="text-xs font-semibold text-[#7A7A82] mb-2 uppercase tracking-wider">
+                    Extracted Skills
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {opportunity.skills.map((skill, i) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 rounded-full bg-[#F4F4F5] text-xs font-medium text-[#17171A]"
                       >
-                        Send
-                      </Button>
-                    )}
-                  </Group>
-                )}
-              </Group>
-              {generatedBody ? (
-                <div>
-                  <Group gap="xs" mb="xs">
-                    <Badge size="sm" variant="light" color="green">
-                      AI Generated
-                    </Badge>
-                    <CopyButton value={generatedBody} timeout={2000}>
-                      {({ copied, copy }) => (
-                        <Button
-                          size="compact-xs"
-                          variant="subtle"
-                          leftSection={copied ? <Check size={12} /> : <Copy size={12} />}
-                          onClick={copy}
-                        >
-                          {copied ? "Copied" : "Copy"}
-                        </Button>
-                      )}
-                    </CopyButton>
-                  </Group>
-                  <Text size="sm" fw={500} mb={4}>
-                    {generatedSubject}
-                  </Text>
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    lh={1.6}
-                    style={{ whiteSpace: "pre-wrap" }}
-                  >
-                    {generatedBody}
-                  </Text>
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              ) : opportunity.coverEmail ? (
-                <div>
-                  <Group gap="sm" mb="xs">
-                    <Badge
-                      variant="light"
-                      color={
-                        opportunity.coverEmail.status === "approved"
-                          ? "green"
-                          : opportunity.coverEmail.status === "sent"
-                            ? "blue"
-                            : "yellow"
-                      }
-                      size="sm"
-                      tt="capitalize"
-                    >
-                      {opportunity.coverEmail.status}
-                    </Badge>
-                    <Text size="sm" fw={500} truncate>
-                      {opportunity.coverEmail.subject}
-                    </Text>
-                  </Group>
-                  <Text
-                    size="xs"
-                    c="dimmed"
-                    lh={1.6}
-                    lineClamp={3}
-                    style={{ whiteSpace: "pre-line" }}
-                  >
-                    {opportunity.coverEmail.body}
-                  </Text>
-                </div>
-              ) : (
-                <Button variant="light" fullWidth leftSection={<Plus size={14} />}>
-                  Create Cover Email
-                </Button>
               )}
-            </Card>
-          </Grid.Col>
-        </Grid>
-      </Container>
+            </div>
+
+            {/* Generated Outreach / Tailored View */}
+            {(tailoredData || coverLetter) && (
+              <div className="eonix-card relative border-2 border-[#7C5CFC]/20">
+                <div className="eonix-floating-pill text-[#7C5CFC] border border-[#EBEAE6]">
+                  <Sparkles size={13} />
+                  <span>AI Generated Materials</span>
+                </div>
+
+                <div className="space-y-4">
+                  {tailoredData && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-display font-semibold text-sm text-[#17171A]">
+                          Tailored Executive Summary
+                        </h4>
+                        {tailoredData.verifier_score && (
+                          <span className="font-mono text-xs font-bold text-[#059669] bg-[#EAF9F5] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <ShieldCheck size={12} />
+                            <span>Score: {tailoredData.verifier_score}%</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-[#52525B] bg-[#FBFBFA] p-3.5 rounded-2xl border border-[#EBEAE6] leading-relaxed">
+                        {tailoredData.summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {coverLetter && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-display font-semibold text-sm text-[#17171A]">
+                          Cold Outreach Letter
+                        </h4>
+                        <button
+                          onClick={() => copyToClipboard(coverLetter)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#7C5CFC] hover:underline"
+                        >
+                          {copied ? <Check size={12} /> : <Copy size={12} />}
+                          <span>{copied ? "Copied!" : "Copy Letter"}</span>
+                        </button>
+                      </div>
+                      <pre className="text-xs text-[#17171A] bg-[#FBFBFA] p-4 rounded-2xl border border-[#EBEAE6] font-mono whitespace-pre-wrap leading-relaxed max-h-72 overflow-y-auto">
+                        {coverLetter}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Company & Research Dossier (1 Col) */}
+          <div className="space-y-6">
+            <div className="eonix-card">
+              <h3 className="font-display font-semibold text-base text-[#17171A] mb-3">
+                Organization Dossier
+              </h3>
+              <div className="space-y-3 text-xs">
+                <div>
+                  <span className="text-[#7A7A82] block text-[11px]">Company Name</span>
+                  <span className="font-semibold text-[#17171A]">{opportunity.company}</span>
+                </div>
+                <div>
+                  <span className="text-[#7A7A82] block text-[11px]">Discovery Source</span>
+                  <span className="font-mono font-medium text-[#17171A] capitalize">
+                    {opportunity.source || "ATS Scraper"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#7A7A82] block text-[11px]">First Seen</span>
+                  <span className="font-mono text-[#17171A]">
+                    {opportunity.date || "Today"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-[#F0EFEC]">
+                <Link
+                  href="/companies"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#F4F4F5] hover:bg-[#EAE9E5] text-[#17171A] rounded-full text-xs font-semibold transition-colors"
+                >
+                  <Building2 size={13} />
+                  <span>View All Companies</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </AppLayout>
   );
 }
