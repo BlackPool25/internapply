@@ -2,9 +2,9 @@ name: Test Suite
 
 on:
   push:
-    branches: [main]
+    branches: ["main", "ui", "**"]
   pull_request:
-    branches: [main]
+    branches: ["main"]
 
 # Cancel superseded runs on same branch
 concurrency:
@@ -63,7 +63,6 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Ruff check (informational, warning-only)
-        # ponytail: warning-only while 574 existing violations are triaged; gate is pytest/alembic/build
         run: ruff check . --exit-zero
         continue-on-error: true
 
@@ -71,7 +70,6 @@ jobs:
         run: |
           set -o pipefail
           pytest -q 2>&1 | tee /tmp/pytest.log
-          # pipefail ensures pytest exit code is propagated, not tail/tee's
 
       - name: Alembic check
         run: |
@@ -94,23 +92,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package.json
 
       - name: Install
         run: npm install --legacy-peer-deps
 
-      - name: Lint (warning-only)
-        # ponytail: warning-only; Build is the gate. Remove continue-on-error when lint is clean.
-        run: npm run lint 2>&1 | tee /tmp/lint.log
-        continue-on-error: true
+      - name: Lint
+        run: npm run lint
 
-      - name: Typecheck (warning-only)
-        # ponytail: warning-only; Build is the gate. Remove continue-on-error when typecheck is clean.
-        run: |
-          set -o pipefail
-          npx tsc --noEmit 2>&1 | tee /tmp/typecheck.log
-        continue-on-error: true
+      - name: Typecheck
+        run: npx tsc --noEmit
 
       - name: Build
-        run: |
-          set -o pipefail
-          npm run build 2>&1 | tee /tmp/build.log
+        run: npm run build

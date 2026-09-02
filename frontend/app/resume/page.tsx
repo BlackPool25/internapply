@@ -1,22 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   FileText,
   Sparkles,
   ShieldCheck,
   Mail,
-  CheckCircle2,
-  AlertTriangle,
-  Download,
-  Copy,
   Check,
   Save,
   RefreshCw,
-  Plus,
-  Trash2,
-  Layers,
   Award,
+  Download,
+  CheckCircle2,
+  Copy,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import {
@@ -36,14 +32,9 @@ export default function ResumePage() {
   // Master Resume Data & Form
   const { data: masterResumeData, isLoading: masterLoading, refetch: refetchMaster } = useMasterResume();
   const updateMasterMutation = useUpdateMasterResume();
-  const [masterJsonText, setMasterJsonText] = useState<string>("");
+  const [editedMasterJsonText, setEditedMasterJsonText] = useState<string | null>(null);
+  const masterJsonText = editedMasterJsonText ?? (masterResumeData ? JSON.stringify(masterResumeData, null, 2) : "");
   const [saveSuccess, setSaveSuccess] = useState(false);
-
-  useEffect(() => {
-    if (masterResumeData) {
-      setMasterJsonText(JSON.stringify(masterResumeData, null, 2));
-    }
-  }, [masterResumeData]);
 
   // Tailoring State
   const tailorMutation = useTailorResume();
@@ -76,6 +67,7 @@ export default function ResumePage() {
       const parsed = JSON.parse(masterJsonText);
       await updateMasterMutation.mutateAsync(parsed);
       setSaveSuccess(true);
+      setEditedMasterJsonText(null);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
       alert("Invalid JSON format in Master Resume.");
@@ -250,7 +242,7 @@ export default function ResumePage() {
               ) : (
                 <textarea
                   value={masterJsonText}
-                  onChange={(e) => setMasterJsonText(e.target.value)}
+                  onChange={(e) => setEditedMasterJsonText(e.target.value)}
                   className="w-full h-[520px] bg-[#17171A] text-[#E4E4E7] font-mono text-xs p-4 rounded-2xl border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#7C5CFC]/50 leading-relaxed resize-y"
                   spellCheck={false}
                 />

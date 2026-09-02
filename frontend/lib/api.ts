@@ -253,8 +253,6 @@ export function useQualityCheck() {
 // ── Pipeline ───────────────────────────────────────────
 
 export function usePipelineStatus() {
-  const queryClient = useQueryClient();
-
   return useQuery<PipelineStatusResponse>({
     queryKey: ["pipeline", "status"],
     queryFn: () => apiFetch<PipelineStatusResponse>("/pipeline/status"),
@@ -270,7 +268,7 @@ export function usePipelineRunConfig() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (config: PipelineConfig) =>
-      apiFetch<{ status: string; run_id: string; message: string; config?: any }>(
+      apiFetch<{ status: string; run_id: string; message: string; config?: Record<string, unknown> }>(
         "/pipeline/run",
         {
           method: "POST",

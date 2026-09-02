@@ -11,12 +11,9 @@ import {
   Building2,
   FileText,
   Settings,
-  Play,
-  CheckCircle2,
   Menu,
   X,
   Sparkles,
-  Sliders,
   Zap,
 } from "lucide-react";
 import { usePipelineStatus } from "@/lib/api";

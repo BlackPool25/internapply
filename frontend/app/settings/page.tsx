@@ -2,17 +2,12 @@
 
 import { useState } from "react";
 import {
-  Settings as SettingsIcon,
   Play,
   RotateCcw,
   Trash2,
   CheckCircle2,
   AlertTriangle,
-  Layers,
-  Sparkles,
-  Shield,
   Sliders,
-  Server,
 } from "lucide-react";
 import { AppLayout } from "@/components/AppLayout";
 import {
@@ -38,15 +33,15 @@ export default function SettingsPage() {
   const [tier1Enabled, setTier1Enabled] = useState(true);
   const [tier2Enabled, setTier2Enabled] = useState(true);
   const [tier3Enabled, setTier3Enabled] = useState(true);
-  const [autoVerify, setAutoVerify] = useState(true);
 
   const handleRunPipeline = async () => {
     try {
       const res = await pipelineRunMutation.mutateAsync(dryRun);
-      setActionSuccess(`Pipeline executed (${res.jobs_found} jobs found, stage: ${res.stage || "completed"})`);
+      setActionSuccess(`Pipeline executed (${res.jobs_found ?? 0} jobs found, stage: ${res.stage || "completed"})`);
       setTimeout(() => setActionSuccess(null), 4000);
-    } catch (e: any) {
-      alert(`Run failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(`Run failed: ${msg}`);
     }
   };
 
@@ -56,8 +51,9 @@ export default function SettingsPage() {
       setShowClearConfirm(false);
       setActionSuccess("Pipeline database tables cleared successfully.");
       setTimeout(() => setActionSuccess(null), 4000);
-    } catch (e: any) {
-      alert(`Clear failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(`Clear failed: ${msg}`);
     }
   };
 
@@ -67,8 +63,9 @@ export default function SettingsPage() {
       setShowRerunConfirm(false);
       setActionSuccess(`Rerun completed (${res.items_rerun} items reprocessed).`);
       setTimeout(() => setActionSuccess(null), 4000);
-    } catch (e: any) {
-      alert(`Rerun failed: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(`Rerun failed: ${msg}`);
     }
   };
 

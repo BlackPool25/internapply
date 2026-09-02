@@ -211,3 +211,19 @@ def _reset_for_tests() -> None:
     _fallback_state.clear()
     _failure_counts.clear()
     _dead_letters.clear()
+    try:
+        import redis as _redis
+
+        url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+        r = _redis.from_url(url, socket_connect_timeout=0.2, socket_timeout=0.2)
+        try:
+            keys = r.keys("breaker:*")
+            if keys:
+                r.delete(*keys)
+        finally:
+            try:
+                r.close()
+            except Exception:
+                pass
+    except Exception:
+        pass

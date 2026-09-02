@@ -23,20 +23,11 @@ import { useQueryState } from "nuqs";
 import {
   Search,
   MapPin,
-  DollarSign,
   ExternalLink,
   MoreVertical,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Sparkles,
-  Layers,
   ArrowRight,
-  ChevronDown,
-  Building2,
-  Briefcase,
   AlertCircle,
-  Flame,
   ShieldCheck,
 } from "lucide-react";
 import { Opportunity, ApplicationStage, SourceType } from "@/lib/types";
@@ -230,7 +221,7 @@ export function KanbanBoard({ sourceType, title, description }: KanbanBoardProps
     }
   };
 
-  const showToast = (msg: string, isError = false) => {
+  const showToast = (msg: string, _isError = false) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
@@ -425,8 +416,6 @@ function KanbanCardItem({ opportunity, isOverlay, onQuickMove }: KanbanCardItemP
     transition,
     opacity: isDragging ? 0.3 : 1,
   };
-
-  const stage = (opportunity.stage || opportunity.status || "discovered").toLowerCase();
 
   // Tier badge color helper
   const getTierColor = (tier: string = "") => {
