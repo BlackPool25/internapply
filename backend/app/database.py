@@ -37,6 +37,13 @@ async def init_db(database_url: str) -> None:
     """Initialise the async engine and session factory."""
     global engine, async_session_maker
 
+    if "@postgres:" in database_url:
+        import socket
+        try:
+            socket.gethostbyname("postgres")
+        except socket.gaierror:
+            database_url = database_url.replace("@postgres:", "@127.0.0.1:")
+
     # (10 + 10) * 2 = 40 < 100 (postgres max_connections)
     assert (10 + 10) * 2 < 100
 
@@ -57,9 +64,25 @@ async def init_db(database_url: str) -> None:
     )
 
     import backend.app.models  # noqa: F401
+    from backend.app.models import JobListing, Application
+    from sqlalchemy import select
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Sync missing Application records so every job listing starts with 'discovered' status
+    async with async_session_maker() as session:
+        try:
+            subquery = select(Application.job_listing_id).where(Application.job_listing_id.is_not(None))
+            missing_stmt = select(JobListing.id).where(~JobListing.id.in_(subquery))
+            res = await session.execute(missing_stmt)
+            missing_ids = res.scalars().all()
+            if missing_ids:
+                for jid in missing_ids:
+                    session.add(Application(job_listing_id=jid, status="discovered"))
+                await session.commit()
+        except Exception:
+            await session.rollback()
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
