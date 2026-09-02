@@ -3,162 +3,82 @@
   "email": "shreyasjoshi2511@gmail.com",
   "phone": "+91 7892055781",
   "location": "Bangalore, India",
-  "summary": "B.Tech AI/ML student (CGPA 9.36) and B.Sc CS student (CGPA 8.91) with hands-on project experience building LLM-powered applications, multi-agent orchestration systems, and NLP pipelines. Open-source contributor with 44 public repositories. Built production-quality systems as hobby and academic projects including Spring Boot AI platforms, blockchain credential verification, and speech-to-text tools.",
+  "github": "https://github.com/BlackPool25",
+  "linkedin": "https://linkedin.com/in/shreyas-s-joshi",
+  "portfolio": "https://portfolio.shreyasjoshi.qzz.io",
+  "leetcode": "BlackPool25 (257 solved)",
+  "summary": "Pre-final B.Tech AIML (BMSIT, CGPA 9.36) + B.Sc CS (BITS Pilani Online, 8.91) — Expected May 2028. Backend/Systems Engineer focused on Dockerized services and protocol design. Built offline RaptorQ transfer protocol (QRStream, 170 commits, ~46KB/s measured) and 8-hour Docker-isolated runtime generator (BUILD & CONQUER 3.0 Winner, 1st Place). Python-first: FastAPI/Spring Boot, PostgreSQL/Redis, Docker/Linux.",
   "education": [
     {
       "degree": "B.Tech in Artificial Intelligence and Machine Learning",
-      "institution": "BMS Institute of Technology and Management",
-      "cgpa": "9.36",
-      "expected": "July 2028"
+      "institution": "BMS Institute of Technology and Management, Bangalore",
+      "cgpa": "9.36 / 10",
+      "expected": "Expected May 2028"
     },
     {
       "degree": "B.Sc in Computer Science",
       "institution": "BITS Pilani (Online)",
-      "cgpa": "8.91",
-      "expected": "July 2028"
+      "cgpa": "8.91 / 10",
+      "expected": "Expected May 2028"
     }
   ],
   "skills": {
-    "Languages": "Python, Java, TypeScript, JavaScript, SQL, C/C++, Dart, Solidity",
-    "AI/ML & LLMs": "Spring AI, LangChain, OpenAI API, Anthropic API, Groq, Gemini, Ollama, RAG, Embeddings, Prompt Engineering, Fine-tuning, HuggingFace Transformers",
-    "NLP & Speech": "Whisper/Whisper.cpp, Kokoro TTS, ONNX, GoEmotions, sentence-transformers, MediaPipe, ASL Recognition",
-    "Data & ML Infrastructure": "PyTorch, NumPy, Pandas, Jupyter, ChromaDB, pgvector, LightRAG, Neo4j, NetworkX",
-    "Backend & APIs": "FastAPI, Spring Boot, Express.js, REST APIs, WebSocket, GraphQL, BullMQ, JWT, Docker, Linux, Git, PostgreSQL, Redis, Kafka, Message Queues",
-    "Blockchain & Web3": "Solidity, Smart Contracts, ERC-721 SBTs, Polygon, Web3Auth, IPFS, Meta-transactions",
-    "Concepts": "Multi-Agent Systems, LLM Orchestration, RAG, Vector Databases, Knowledge Graphs, DSA (257 LeetCode)",
-    "Backend": "Python Backend Engineering"
+    "Proficient": "Python, Java, SQL — daily driver for backend services & DSA",
+    "Intermediate": "C++ (DSA — 257 LeetCode: 132 Easy / 118 Medium / 7 Hard, 80% accept), C",
+    "Familiar": "TypeScript, JavaScript, Dart — Flutter/PWA (QRStream interop), Solidity",
+    "Backend & Infra (Applied)": "FastAPI, Spring Boot, REST, WebSocket, BullMQ (Job Queue), Redis, Kafka (event streaming), PostgreSQL (pgvector / PostGIS / pgRouting), ChromaDB, Docker, Docker Compose, GitHub Actions CI, Linux",
+    "Systems & Protocols (Applied)": "RaptorQ fountain code, CRC-32C / SHA-256, event-driven async (Spring ApplicationEvents + @Async), pgRouting Dijkstra, stateful map-matching, WebSocket streaming, Flutter Rust Bridge FFI"
   },
   "projects": [
     {
-      "url": "https://github.com/BlackPool25/Cognalytix",
-      "name": "Cognalytix",
-      "tech": "Spring Boot 4, Spring AI, Ollama (Qwen3), PostgreSQL + pgvector, Python Sidecar (GoEmotions), Docker Compose",
+      "name": "QRStream — Offline Erasure-Coded File Transfer Protocol",
+      "url": "https://github.com/BlackPool25/QRStream",
+      "tech": "Python sidecar + Dart/Flutter + TypeScript | 170 commits, MIT, CI v1.0.1",
       "description": [
-        "Architected AI analysis pipeline processing journal entries through LLM-powered segmentation, emotion classification (GoEmotions via Python sidecar), and sentiment tracking — serving 1000+ entries with sub-minute analysis",
-        "Implemented Spring AI integration with local Ollama LLM (Qwen3) for mirror narration generation, semantic label resolution via pgvector cosine similarity (threshold >= 0.75) for vocabulary continuity across entries",
-        "Built SQL-based pattern detection engine that identifies emotion drift on recurring topics — classifying trajectories as growth, regression, or stable with aggregate-only facts (no raw text stored)",
-        "Designed event-driven async architecture using Spring ApplicationEvents + @Async thread pool, ensuring non-blocking journal writes with autonomous post-processing pipeline"
+        "Designed wire-compatible offline protocol: RaptorQ fountain-encode K symbols → cycling QR grid (1×1 to 3×3, V27/V34/V40, 12–30fps, metadata every 32 ticks for late-join) → ZXing-C++ decode → FrameBuffer dedup by ESI → any K of K+repair symbols rebuild + SHA-256 gate; transfer cap 16 MiB.",
+        "Implemented Rust codec via flutter_rust_bridge 2.12 FFI (71KB Rust + 27KB C++) with Python verification pipeline, continuous linear tile scaling (nearest-neighbour hard edges, camera-decodable), per-frame CRC-32C + whole-file SHA-256; honest throughput ~46 KB/s (1 MiB ~23s measured) via Playwright headless + virtual camera — docs/PERF.md.",
+        "Shipped 3-OS releases: Linux install.sh (SHA256SUMS verified) + RPM, Android APK (stable keystore via GitHub Secrets — fixes INSTALL_FAILED_UPDATE_INCOMPATIBLE), Windows installer (MSVC runtime app-local); 118 Flutter tests; ARCHITECTURE + THREAT-MODEL documented."
       ]
     },
     {
+      "name": "AgentDock — Visual Builder → Docker-Isolated Agent Runtimes",
       "url": "https://github.com/BlackPool25/AgentDock",
-      "name": "AgentDock",
-      "tech": "TypeScript, Bun, Hono, BullMQ, Redis, FastAPI, Python, ChromaDB, sentence-transformers, Dockerode, React Flow",
+      "tech": "BUILD & CONQUER 3.0 WINNER (1st Place, 8hr, Altreno Club BMSIT) | TypeScript, Bun, Hono, BullMQ/Redis, FastAPI/Python, Dockerode, React Flow",
       "description": [
-        "Engineered full-stack multi-agent orchestration platform with visual pipeline builder (React Flow), LLM Gateway with BullMQ job queue, and Python agent runtime with FastAPI",
-        "Built LLM Gateway supporting 5+ providers (OpenAI, Anthropic, Groq, Google Gemini, Ollama) with automatic failover, rate limiting, and configurable model routing",
-        "Implemented RAG-based agent memory using ChromaDB + sentence-transformers for offline embedding, indexing per-agent Git-backed markdown volumes for long-term context persistence",
-        "Designed Docker Compose project generator that compiles natural language agent descriptions into standalone, self-contained runtime with API gateway, Redis, and FastAPI worker containers"
+        "Built React Flow canvas that compiles natural-language agent descriptions into fully self-contained Docker Compose runtimes (API gateway + Redis + FastAPI workers) — no coupling to builder backend; judges stopped rubric to ask to run locally vs single-purpose apps.",
+        "Solved container isolation under timer: volume mounts + network routes for dynamically spawned agents to share files / communicate; debugged network routes + volume mounts as timer ran down — achieved reliable isolation where other teams hardcoded single apps.",
+        "Engineered orchestration: Hono gateway + BullMQ job queue (Redis), Python FastAPI agent runtime, RAG memory via ChromaDB/offline sentence-transformers (per-agent Git-backed markdown volumes), LLM Gateway (5 providers: OpenAI/Anthropic/Groq/Gemini/Ollama with failover + rate limiting)."
       ]
     },
     {
-      "url": "https://github.com/BlackPool25/PolicySattva",
-      "name": "PolicySattva",
-      "tech": "FastAPI, Python, LightRAG, Neo4j, Groq API, Gemini API, Ollama, PyMuPDF, 3072-dim Embeddings",
+      "name": "ZonePilot — Fleet Zone Compliance Engine",
+      "url": "https://github.com/BlackPool25/ZonePilot",
+      "tech": "Java 25, Spring Boot 3.5, PostgreSQL 16 + PostGIS + pgRouting, Flyway, Docker | 47 commits | Live: zonepilot-snowy.vercel.app",
       "description": [
-        "Built RAG-powered legal analysis platform with LightRAG hybrid retrieval, Neo4j knowledge graph for entity relationship exploration, and risk-rated answers with source clause citations",
-        "Engineered multi-LLM provider system (Groq, Gemini, Ollama) with automatic fallback ensuring 99.5% availability and <200ms response time for 100+ queries/day",
-        "Implemented interactive knowledge graph visualization with subgraph exploration, entity relationship analysis, and 3072-dimension embedding support for dense document retrieval"
-      ]
-    },
-    {
-      "url": "https://zonepilot-snowy.vercel.app/",
-      "name": "ZonePilot",
-      "tech": "Java 25, Spring Boot 3.5, Hibernate 6 + Spatial, PostgreSQL 16 + PostGIS + pgRouting, Flyway, JTS, Docker",
-      "description": [
-        "Architected Spring Boot 3 backend with pgRouting-based directed Dijkstra on Bangalore's OSM road network — recursive 5-attempt compliance checking with 1000x zone penalty and wait-state route fallback for curfew-bound vehicles",
-        "Implemented database-level atomic breach detection via PostgreSQL trigger — ensuring no missed zone violations if the application layer crashes mid-transaction",
-        "Built stateful map-matching with heading-aware GPS snapping, simulation engine with noise injection (GPS glitches + wrong turns), and deployed live on Vercel"
-      ]
-    },
-    {
-      "url": "https://github.com/BlackPool25/CredVerify",
-      "name": "CredVerify",
-      "tech": "Next.js, TypeScript, Solidity, ERC-721 SBT, Polygon Amoy, Web3Auth, Supabase, BullMQ, Redis, IPFS, Puppeteer",
-      "description": [
-        "Engineered Soulbound Token (SBT) credential system on Polygon Amoy testnet with gasless claiming via ERC-2771 meta-transactions — zero crypto knowledge required for end users",
-        "Built async certificate pipeline with BullMQ + Redis handling 50+ concurrent Puppeteer render jobs, retry/recovery, and sub-100ms verification via Redis-backed caching and IPFS CDN",
-        "Implemented DEK/KEK encryption hierarchy (AES-256-GCM), Supabase Row-Level Security, and drag-and-drop custom certificate template editor"
-      ]
-    },
-    {
-      "url": "https://github.com/BlackPool25/MudraTalk",
-      "name": "MudraTalk",
-      "tech": "React, Three.js, FastAPI, Python, Whisper.cpp, Gemma 3 LLM, MediaPipe, CCD IK, ROCm, Ollama",
-      "description": [
-        "Building real-time speech-to-sign language pipeline converting spoken English to animated ASL using 3D avatar with CCD inverse kinematics and 60fps Three.js rendering",
-        "Implemented OOV resolution using Gemma 3 LLM with WLASL sign library integration and fingerspelling fallback for out-of-vocabulary terms",
-        "Built natural cubic spline interpolation for smooth keyframe transitions, ROCm GPU acceleration, and Whisper.cpp for offline speech recognition"
-      ]
-    },
-    {
-      "url": "https://github.com/BlackPool25/CoreReader",
-      "name": "CoreReader",
-      "tech": "Flutter, Dart, FastAPI, Python, Kokoro TTS, ONNX, WebSocket, SQLite, MediaPipe",
-      "description": [
-        "Built cross-platform mobile app with real-time sentence-accurate text highlighting synchronized to AI-generated audio playback via WebSocket streaming",
-        "Integrated Kokoro ONNX TTS engine supporting 50+ voices with independent TTS render speed and playback speed controls; offline FLAC download for Android devices",
-        "Designed chunked audio delivery system with WebSocket streaming for low-latency playback and sentence-level synchronization"
-      ]
-    },
-    {
-      "url": "https://github.com/BlackPool25/WhisperLayer",
-      "name": "WhisperLayer",
-      "tech": "Python, OpenAI Whisper, PyQt5, PyTorch, CUDA, ROCm, Ollama, Linux System Integration",
-      "description": [
-        "Built Linux-native voice typing application with OpenAI Whisper for offline speech recognition and global hotkey support working across all applications",
-        "Implemented GPU acceleration supporting both NVIDIA (CUDA) and AMD (ROCm) with automatic device detection and local AI assistant via Ollama for privacy-first voice commands"
-      ]
-    },
-    {
-      "name": "DSA-Visualizer",
-      "url": "https://github.com/BlackPool25/DSA-Visualizer",
-      "tech": "TypeScript, React, GDB, libclang AST, Docker",
-      "description": [
-        "Built GDB-powered C++ algorithm execution tracer with real-time visualization of data structures and memory state",
-        "Implemented Docker sandbox for safe code execution, supporting multi-step debugging with breakpoints and variable inspection",
-        "Designed interactive UI for step-through algorithm visualization, enabling students to understand complex DSA concepts visually"
-      ]
-    },
-    {
-      "name": "packt",
-      "url": "https://github.com/BlackPool25/packt",
-      "tech": "Python",
-      "description": [
-        "Contributed to open-source AI/ML library for model packaging and deployment"
-      ]
-    },
-    {
-      "name": "Percepta",
-      "url": "https://github.com/BlackPool25/Percepta",
-      "tech": "Python, PyTorch, NumPy",
-      "description": [
-        "Built continual learning system inspired by Complementary Learning Systems theory with hippocampal memory consolidation",
-        "Implemented dual-speed learning architecture with fast (hippocampus) and slow (neocortex) pathways achieving 73.6% ACC on Split-MNIST",
-        "Designed promotion gates and EWC-based retention mechanisms for 3.87× improvement over naive fine-tuning"
+        "Architected Spring Boot 3 fleet brain: pgRouting directed Dijkstra on Bangalore OSM (blr_2po_4pgr, 1000× zone penalty, 5-attempt recursive compliance + wait-state via Google Routes), Flyway migrations, Docker Compose + partitioned vehicle_position_log (monthly) + 5 GIST spatial indexes.",
+        "Implemented atomic breach detection inside PostgreSQL trigger (trg_detect_zone_breach AFTER INSERT) — no missed violations on app crash — plus stateful map-matching (30m snap with heading, 50m off-route 2-tick reroute), IST timezone overnight curfew logic, ST_Covers boundary handling."
       ]
     }
   ],
-  "additional": [
+  "open_source": [
     {
-      "label": "Open Source Contributor",
-      "value": "8 merged PRs across 6 projects: opentofu/opentofu (29.6k★) — fixed plan serialization bug in Go; zalando/skipper (3.3k★) — added base64 encode/decode HTTP filters in Go; link-society/flowg (151★) — implemented FoundationDB storage backend in Go; milvus-io/milvus-proto — added UUID type to vector DB protocol; Fmarzochi/EGC — fixed telemetry data integrity bug; openchoreo/sample-workloads — fixed multi-arch Docker builds"
+      "name": "opentofu/opentofu#4328 (merged)",
+      "url": "https://github.com/opentofu/opentofu/pull/4328",
+      "description": "Fixed plan file serialization for ForgetThenCreate (lifecycle.destroy=false): bridged Go ↔ protobuf enum (Action_FORGET_THEN_CREATE=10) in internal/plans/planfile/tfplan.go (+7) + tests (+25)."
+    }
+  ],
+  "achievements": [
+    {
+      "label": "1st Place — BUILD & CONQUER 3.0",
+      "value": "Altreno Club, BMSIT — 8-hour prototype, AgentDock Docker-isolated runtime generator."
     },
     {
-      "label": "Open Source Portfolio",
-      "value": "30 public repositories on GitHub covering AI/ML, LLM orchestration, NLP, blockchain, accessibility tools, and developer utilities"
+      "label": "2nd Place — CTF Contest",
+      "value": "Access Denied Club, BMSIT — competitive capture-the-flag placement."
     },
     {
       "label": "DSA & Problem Solving",
-      "value": "257 LeetCode problems solved (BlackPool25) — 132 Easy / 118 Medium / 7 Hard | 80.06% acceptance rate | Beats 93.73% in runtime"
-    },
-    {
-      "label": "Hackathon Winner",
-      "value": "Won a college hackathon — built AI/ML solution in 24-hour sprint"
-    },
-    {
-      "label": "CTF Participant",
-      "value": "Secured second place in a CTF competition — solved challenges in reversing, pwn, and crypto categories"
+      "value": "257 LeetCode solved (132 Easy / 118 Medium / 7 Hard) — 80.06% acceptance, beats 93.73% runtime — C++ primary for DSA, Python for backend prototyping."
     }
   ]
 }

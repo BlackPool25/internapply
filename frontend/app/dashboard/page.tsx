@@ -262,6 +262,47 @@ export default function DashboardPage() {
           </motion.div>
         </div>
 
+        {/* Quick Triage & Navigation Banner */}
+        <div className="eonix-card py-3 px-5 bg-gradient-to-r from-white via-white to-[#F8F7F4] border border-[#EBEAE6] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[#17171A] flex items-center justify-center text-white">
+              <Sparkles size={15} className="text-[#7C5CFC]" />
+            </div>
+            <div>
+              <span className="font-display font-bold text-xs text-[#17171A] block">
+                Workflow Quick Triage
+              </span>
+              <span className="text-[11px] text-[#7A7A82]">
+                Jump straight into focused queues or trigger background discovery.
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/internships"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#17171A] text-white text-xs font-semibold hover:bg-[#2C2C30] transition-colors"
+            >
+              <span>Discovered Queue ({stats?.by_stage?.discovered || 0})</span>
+            </Link>
+
+            <Link
+              href="/internships"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#F3EFFF] text-[#7C5CFC] text-xs font-semibold hover:bg-[#7C5CFC] hover:text-white transition-colors"
+            >
+              <span>In Review ({stats?.by_stage?.reviewing || 0})</span>
+            </Link>
+
+            <Link
+              href="/pipeline"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#7C5CFC] text-white text-xs font-semibold hover:bg-[#6847E8] transition-colors"
+            >
+              <Sparkles size={12} />
+              <span>Scraper Pipeline</span>
+            </Link>
+          </div>
+        </div>
+
         {/* 2. Main Visual Charts Grid (Funnel & Source Tiers) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Pipeline Conversion Funnel (2 Cols) */}

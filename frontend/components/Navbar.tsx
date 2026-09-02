@@ -36,8 +36,8 @@ export function Navbar() {
   const isRunning = pipelineStatus?.status === "running";
 
   return (
-    <header className="sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 pt-4 pb-2 bg-[#F0EFEC]/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full px-4 sm:px-6 lg:px-8 xl:px-12 pt-4 pb-2 bg-[#F0EFEC]/90 backdrop-blur-md">
+      <div className="w-full max-w-[1920px] mx-auto flex items-center justify-between">
         {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 rounded-xl bg-[#17171A] flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-105">
