@@ -37,7 +37,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from internapply.outreach.sender import GmailSender
+try:
+    from internapply.outreach.sender import GmailSender
+except ImportError:
+    GmailSender = None  # type: ignore
 
 # ---------------------------------------------------------------------------
 # App & console
@@ -55,8 +58,11 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 
-def _get_sender() -> GmailSender:
+def _get_sender() -> Any:
     """Return a configured :class:`GmailSender` instance."""
+    if GmailSender is None:
+        console.print("[red]Email outreach module is not available.[/red]")
+        raise typer.Exit(code=1)
     return GmailSender()
 
 

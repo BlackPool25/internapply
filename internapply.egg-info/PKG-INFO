@@ -3,13 +3,23 @@ Name: internapply
 Version: 0.1.0
 Summary: Automated internship application system — discovers, tailors, and applies to paid backend internships
 Requires-Python: >=3.11
+License-File: LICENSE
 Requires-Dist: langgraph>=0.2.0
-Requires-Dist: httpx>=0.25.0
+Requires-Dist: httpx>=0.27.0
 Requires-Dist: beautifulsoup4>=4.12.0
 Requires-Dist: pydantic>=2.0.0
 Requires-Dist: pydantic-settings>=2.0.0
 Requires-Dist: sqlalchemy>=2.0.0
 Requires-Dist: aiosqlite>=0.19.0
+Requires-Dist: asyncpg>=0.29.0
+Requires-Dist: alembic>=1.13.0
+Requires-Dist: redis>=5.0.0
+Requires-Dist: tenacity>=8.2.0
+Requires-Dist: structlog>=24.1.0
+Requires-Dist: prometheus-client>=0.20.0
+Requires-Dist: asgi-correlation-id>=2.0.0
+Requires-Dist: prometheus-fastapi-instrumentator>=6.0.0
+Requires-Dist: arq>=0.26.3
 Requires-Dist: typer>=0.9.0
 Requires-Dist: rich>=13.0.0
 Requires-Dist: python-dotenv>=1.0.0
@@ -19,8 +29,11 @@ Requires-Dist: openai>=1.0.0
 Requires-Dist: playwright>=1.40.0
 Requires-Dist: google-api-python-client>=2.0.0
 Requires-Dist: google-auth-oauthlib>=1.0.0
+Requires-Dist: python-docx>=1.1.0
+Requires-Dist: python-jobspy>=1.1.82
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0.0; extra == "dev"
 Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
 Requires-Dist: pytest-mock>=3.0.0; extra == "dev"
 Requires-Dist: ruff>=0.1.0; extra == "dev"
+Dynamic: license-file

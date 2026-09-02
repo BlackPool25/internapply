@@ -135,21 +135,25 @@ async def _run_discovery(
     # ── Save to database (upsert with dedup) ──────────────────────
     if save and not dry_run:
         try:
-            from internapply.database import get_session, init_db, upsert_job_listing
-            from internapply.pipeline.nodes import _parse_relative_date
-
-            await init_db(config_dict.get("DATABASE_PATH"))
-            saved_count = 0
-            async with get_session() as session:
-                for job in filtered:
-                    posted_at_date = _parse_relative_date(job.get("posted_at"))
-                    await upsert_job_listing(session, job, posted_at_date_value=posted_at_date)
-                    saved_count += 1
+            from internapply.pipeline.nodes import save_jobs
+            await save_jobs({"jobs": filtered, "dry_run": False})
             console.print(
-                f"  [green]Saved {saved_count} listing(s) to database[/green]"
+                f"  [green]Saved {len(filtered)} listing(s) to PostgreSQL database[/green]"
             )
-        except Exception as exc:
-            console.print(f"[red]Failed to save to database: {exc}[/red]")
+        except Exception as pg_exc:
+            try:
+                from internapply.database import get_session, init_db, upsert_job_listing
+                await init_db(config_dict.get("DATABASE_PATH"))
+                saved_count = 0
+                async with get_session() as session:
+                    for job in filtered:
+                        await upsert_job_listing(session, job)
+                        saved_count += 1
+                console.print(
+                    f"  [green]Saved {saved_count} listing(s) to SQLite mirror[/green]"
+                )
+            except Exception as exc:
+                console.print(f"[red]Failed to save to database: {exc} (PG error: {pg_exc})[/red]")
     elif save and dry_run:
         console.print("  [yellow]--dry-run: skipping database save[/yellow]")
 

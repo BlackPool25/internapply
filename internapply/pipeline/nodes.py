@@ -233,42 +233,30 @@ async def save_jobs(state: PipelineState) -> dict[str, Any]:
         from datetime import datetime, timezone
         from backend.app.config import settings
         await init_db(settings.database_url)
+        saved_count = 0
+        updated_count = 0
         async for session in get_session():
             for job in state.get("jobs", []) or state.get("job_listings", []):
                 cid = job.get("canonical_id") or ""
                 if not cid:
                     continue
-                existing = await session.execute(select(ORMJobListing).where(ORMJobListing.canonical_id == cid))
-                row = existing.scalar_one_or_none()
-                if row is not None:
-                    new_jd = job.get("jd_hash")
-                    old_jd = row.jd_hash
-                    if new_jd and old_jd and new_jd == old_jd:
-                        # etag tiebreaker only if both present
-                        new_etag = job.get("etag")
-                        old_etag = row.etag
-                        if new_etag and old_etag and new_etag != old_etag:
-                            pass
-                        try:
+                try:
+                    existing = await session.execute(select(ORMJobListing).where(ORMJobListing.canonical_id == cid))
+                    row = existing.scalar_one_or_none()
+                    if row is not None:
+                        new_jd = job.get("jd_hash")
+                        old_jd = row.jd_hash
+                        if new_jd and old_jd and new_jd == old_jd:
                             row.last_seen_at = datetime.now(timezone.utc)
                             await session.flush()
-                        except Exception:
-                            pass
-                        continue
-                    # jd differs → diff_change_log
-                    try:
-                        diff = diff_change_log({"title": row.title, "company": row.company, "location": row.location or "", "description": row.description or ""},
-                                               {"title": job.get("title",""), "company": job.get("company",""), "location": job.get("location",""), "description": job.get("description","")})
-                    except Exception:
-                        diff = {"changed": True}
-                    if not diff:
+                            continue
                         try:
-                            row.last_seen_at = datetime.now(timezone.utc)
-                            await session.flush()
+                            diff = diff_change_log(
+                                {"title": row.title, "company": row.company, "location": row.location or "", "description": row.description or ""},
+                                {"title": job.get("title",""), "company": job.get("company",""), "location": job.get("location",""), "description": job.get("description","")}
+                            )
                         except Exception:
-                            pass
-                        continue
-                    try:
+                            diff = {"changed": True}
                         row.change_log = {**(row.change_log or {}), **diff, "at": datetime.now(timezone.utc).isoformat()}
                         if job.get("jd_hash"):
                             row.jd_hash = job["jd_hash"]
@@ -278,10 +266,9 @@ async def save_jobs(state: PipelineState) -> dict[str, Any]:
                             row.description = job["description"]
                         row.last_seen_at = datetime.now(timezone.utc)
                         await session.flush()
-                    except Exception:
-                        pass
-                    continue
-                try:
+                        updated_count += 1
+                        continue
+
                     orm = ORMJobListing(
                         title=job.get("title",""), company=job.get("company",""), location=job.get("location"),
                         description=job.get("description"), source=job.get("source") or job.get("source_ats") or "unknown",
@@ -292,12 +279,18 @@ async def save_jobs(state: PipelineState) -> dict[str, Any]:
                     )
                     session.add(orm)
                     await session.flush()
-                except Exception:
+                    saved_count += 1
+                except Exception as item_err:
+                    await session.rollback()
+                    logger.debug("Failed saving item {}: {}", cid, item_err)
                     continue
+        logger.info("save_jobs completed: inserted={}, updated={}", saved_count, updated_count)
+        _log_completion("save", start, saved_count)
+        return {"stage": "save", "saved_count": saved_count, "updated_count": updated_count}
     except Exception as exc:
         logger.warning("save_jobs failed: {}", exc)
-    _log_completion("save", start, 0)
-    return {"stage": "save"}
+        _log_completion("save", start, 0)
+        return {"stage": "save", "errors": [str(exc)]}
 
 
 # Kept for skill only — not in auto pipeline

@@ -504,11 +504,12 @@ class WorkerSettings:
     )
 
 
-async def main() -> None:
+def main() -> None:
     from arq import run_worker
 
-    await run_worker(WorkerSettings)
+    run_worker(WorkerSettings)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
+
